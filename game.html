@@ -48,7 +48,7 @@
             height: 100%;
             max-height: 768px;
             background-color: var(--bg-texture-color);
-            background-image: url('/asset/img/open_office.png'); /* 🖼️ DETAILED BACKGROUND IMAGE OF THE OFFICE */
+            background-image: url('asset/img/open_office.png'); /* 🖼️ DETAILED BACKGROUND IMAGE OF THE OFFICE */
             background-size: cover;
             background-position: center;
             box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
@@ -272,7 +272,7 @@
         #camera-static {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url('/asset/gif/static_noise.gif'); /* TV Static GIF */
+            background-image: url('asset/gif/static_noise.gif'); /* TV Static GIF */
             background-size: cover;
             opacity: 0.1; /* Hidden by default */
             pointer-events: none; /* Lets you click through it */
@@ -400,28 +400,28 @@
         const STATIC_SOUND = 'https://actions.google.com/sounds/v1/water/radio_static.ogg'; 
 
         
-        const OFFICE_BACKGROUND_IMG = '/asset/img/open_office.png'; // 🖼️ Detailed Indonesian room background
+        const OFFICE_BACKGROUND_IMG = 'asset/img/open_office.png'; // 🖼️ Detailed Indonesian room background
         // ==========================================
         // 🏢 OFFICE IMAGES (STATE MACHINE)
         // ==========================================
         const OFFICE_IMAGES = {
-            base: '/asset/img/open_office.png', // Empty office, both doors open
+            base: 'asset/img/open_office.png', // Empty office, both doors open
             
             // Enemy is visible in the open doorway
-            enemyLeft: '/asset/img/enemyLeft.jpeg',
-            enemyRight: '/asset/img/enemyRight.jpeg',
+            enemyLeft: 'asset/img/enemyLeft.jpeg',
+            enemyRight: 'asset/img/enemyRight.jpeg',
             
             // Door closed states (and what happens if an enemy is at the other open door)
-            leftDoorClosed: '/asset/img/leftDoorClosed.png',
-            leftDoorClosed_enemyRight: '/asset/img/rightLightEnemy_leftClosed.png',
+            leftDoorClosed: 'asset/img/leftDoorClosed.png',
+            leftDoorClosed_enemyRight: 'asset/img/rightLightEnemy_leftClosed.png',
             
-            rightDoorClosed: '/asset/img/rightDoorClosed.png',
-            rightDoorClosed_enemyLeft: '/asset/img/leftLightEnemy_rightClosed.png',
+            rightDoorClosed: 'asset/img/rightDoorClosed.png',
+            rightDoorClosed_enemyLeft: 'asset/img/leftLightEnemy_rightClosed.png',
             
-            bothDoorsClosed: '/asset/img/office.png'
+            bothDoorsClosed: 'asset/img/office.png'
         };
-        const JUMPSCARE_IMAGE = '/asset/img/prabowo.jpg'; // A horrifying Indonesian ghostly mask
-        const JUMPSCARE_SOUND = '/asset/sound/antek-antek.mp3'; // LOUD, distressed scream
+        const JUMPSCARE_IMAGE = 'asset/img/prabowo.jpg'; // A horrifying Indonesian ghostly mask
+        const JUMPSCARE_SOUND = 'asset/sound/antek-antek.mp3'; // LOUD, distressed scream
         
         // ==========================================
         // 📷 CAMERA IMAGES (EMPTY VS ENEMY)
@@ -429,16 +429,16 @@
         // ==========================================
         const CAMERA_VIEWS = {
             1: { 
-                empty: '/asset/img/cam1.png', 
-                enemy: '/asset/img/cam1_prabowo.png' 
+                empty: 'asset/img/cam1.png', 
+                enemy: 'asset/img/cam1_prabowo.png' 
             },
             2: { 
-                empty: '/asset/img/cam2.png', 
-                enemy: '/asset/img/cam2_prabowo.png' 
+                empty: 'asset/img/cam2.png', 
+                enemy: 'asset/img/cam2_prabowo.png' 
             },
             3: { 
-                empty: '/asset/img/cam3.png', 
-                enemy: '/asset/img/cam3_prabowo.png' 
+                empty: 'asset/img/cam3.png', 
+                enemy: 'asset/img/cam3_prabowo.png' 
             },
             4: { 
                 // If Cam 4 is just static or a blind spot, you can make both the same, 
@@ -501,7 +501,7 @@
         const jumpscareAudio = new Audio(JUMPSCARE_SOUND);
         const staticAudio = new Audio(STATIC_SOUND);
         staticAudio.volume = 0.3; // Keep it low so it doesn't blast your ears
-        const movementAudio = new Audio('/asset/sound/hidup-jokowi.mp3');
+        const movementAudio = new Audio('asset/sound/hidup-jokowi.mp3');
         // --- Core Loops ---
 
         // 1. Clock Loop (1 hour every 20 seconds for production, 15s for testing)
