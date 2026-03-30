@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Five Nights at Wowok</title>
+    <style>
+        /* --- CSS: Visual Styling & Layout (Hybrid Strategy) --- */
+        :root {
+            /* Textures and grimy colors */
+            --bg-texture-color: #0d1a15; /* Grimy base for image fallback */
+            --distressed-green: #2a3c30;
+            --weathered-blue: #2a334f;
+            --button-metallic: #4c576d;
+            --button-active: #94b9ff;
+            --red-active: #ff5252;
+            --white-active: #ffffff;
+            --ui-text-color: #ecf0f1;
+            --monospace-font: 'Courier Prime', 'Courier New', Courier, monospace;
+        }
+
+        /* Distressed font for the UI */
+        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            font-family: var(--monospace-font);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: var(--ui-text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Main Game Container */
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 1024px; /* Maintain aspect ratio */
+            height: 100%;
+            max-height: 768px;
+            background-color: var(--bg-texture-color);
+            background-image: url('/asset/img/open_office.png'); /* 🖼️ DETAILED BACKGROUND IMAGE OF THE OFFICE */
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+            overflow: hidden;
+        }
+
+        /* Scanline Overlay (for lo-fi effect) */
+        #scanline-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%);
+            background-size: 100% 3px;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.5;
+        }
+
+        /* --- UI elements (Text and meters) --- */
+        #top-ui {
+            position: absolute;
+            top: 20px; right: 30px;
+            text-align: right;
+            z-index: 10;
+            font-size: 1.8rem;
+            text-shadow: 2px 2px 0 #000, 0 0 8px #fff; /* Distressed glow */
+        }
+
+        #power-ui {
+            position: absolute;
+            bottom: 20px; left: 30px;
+            z-index: 10;
+            font-size: 1.3rem;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        #power-bar-container {
+            width: 150px;
+            height: 15px;
+            background-color: #222;
+            border: 2px solid #555;
+            margin-top: 5px;
+        }
+
+        #power-bar-fill {
+            width: 100%;
+            height: 100%;
+            background-color: #4caf50;
+            transition: width 0.1s linear;
+        }
+
+        /* Usage display */
+        #usage-display {
+            display: flex;
+            gap: 2px;
+            margin-top: 5px;
+        }
+        .usage-segment {
+            width: 15px;
+            height: 15px;
+            background-color: #333;
+            border: 1px solid #111;
+        }
+        .usage-segment.active {
+            background-color: #f1c40f;
+        }
+
+        /* --- Office Elements (Interactive Overlays) --- */
+        #office-view {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+        }
+
+        /* Define absolute position hitboxes for doors based on the image */
+        .door-frame {
+            position: absolute;
+            width: 15%; /* Approximates image doors */
+            height: 70%;
+            background: rgba(0,0,0,0.1); /* Semi-transparent overlay to mark the area */
+            border: none;
+            cursor: default;
+        }
+
+        .door-frame.left { left: 5%; }
+        .door-frame.right { right: 5%; }
+
+        /* Actual functional door element (overlay barrier) */
+        .door {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--weathered-blue);
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, #1a233c 10px, #1a233c 20px);
+            opacity: 0;
+            transition: transform 0.3s ease;
+            transform: translateY(-100%); /* Door starts open */
+            box-shadow: inset 0 0 10px #000;
+            z-index: 6;
+        }
+        .door.closed {
+            transform: translateY(0);
+        }
+
+        /* Text overlay on doors (as visible in the reference image) */
+        .door-label {
+            position: absolute;
+            top: 15%;
+            left: 0; width: 100%;
+            text-align: center;
+            color: rgba(255,255,255,0.7);
+            font-size: 1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            z-index: 7;
+        }
+
+        /* Custom switch overlays for door and light buttons */
+        .controls {
+            position: absolute;
+            top: 50%; /* Position near the red/green buttons in the image */
+            width: 60px;
+            height: 140px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            border-radius: 4px;
+            z-index: 8;
+        }
+        .controls.left { left: -70px; }
+        .controls.right { right: -70px; }
+
+        .btn {
+            width: 40px; height: 40px;
+            border-radius: 4px;
+            border: 2px solid #555;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #ddd;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+        }
+
+        .btn-door {
+            background-color: #800; /* Red door button */
+        }
+        .btn-door.active {
+            background-color: var(--red-active);
+            box-shadow: 0 0 15px var(--red-active);
+            color: #fff;
+        }
+
+        .btn-light {
+            background-color: #666; /* Grey light button */
+        }
+        .btn-light.active {
+            background-color: var(--white-active);
+            box-shadow: 0 0 20px var(--white-active);
+            color: #000;
+        }
+
+        /* Camera Toggle (Open Monitor button) */
+        #camera-toggle {
+            position: absolute;
+            bottom: 20px; right: 30px;
+            width: 300px; height: 50px;
+            background-color: var(--button-metallic);
+            background-image: linear-gradient(135deg, var(--button-metallic), #3b4253);
+            border: 3px solid #666;
+            color: #ddd;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 20;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        #camera-toggle:hover {
+            background-color: var(--button-active);
+            color: #fff;
+        }
+
+        /* Camera System (Monitor overlay) */
+        #camera-system {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #000;
+            display: none;
+            z-index: 15;
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Defines the specific camera view area (monitors on desk look static) */
+        #camera-view-window {
+            width: 100%; height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            background-image: url('https://i.pinimg.com/736x/98/38/8c/98388c6d00552824044a449184e3729e.jpg'); /* Fallback for when no camera is selected */
+            background-size: cover;
+            background-position: center;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        /* Camera Static Overlay */
+        #camera-static {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('/asset/gif/static_noise.gif'); /* TV Static GIF */
+            background-size: cover;
+            opacity: 0.1; /* Hidden by default */
+            pointer-events: none; /* Lets you click through it */
+            z-index: 18; /* Sits directly over the camera view */
+            transition: opacity 0.1s; /* Quick fade out */
+        }
+
+        /* Distressed map grid for camera buttons */
+        #camera-map {
+            position: absolute;
+            bottom: 80px; right: 30px;
+            width: 250px; height: 200px;
+            border: 2px solid #555;
+            background: rgba(0,0,0,0.8);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .cam-btn {
+            background: #333; color: #aaa;
+            border: 1px solid #777;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+            border-radius: 2px;
+        }
+        .cam-btn.active {
+            background: var(--button-active);
+            color: #fff;
+            border-color: #aaa;
+        }
+
+        /* Jumpscare Screen */
+        #jumpscare-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #000;
+            background-size: cover;
+            background-position: center;
+            display: none;
+            z-index: 999;
+        }
+
+        /* Enemy indicator visual for the light mechanics */
+        #enemy-visual {
+            position: absolute;
+            width: 100px; height: 100px;
+            background: red;
+            border-radius: 50%;
+            display: none;
+            box-shadow: 0 0 20px red;
+            z-index: 6; /* Just inside the door frame */
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="scanline-overlay"></div>
+
+        <div id="jumpscare-screen"></div>
+
+        <div id="top-ui">
+            <div id="time-display">12 AM</div>
+            <div id="night-display">NIGHT 1</div>
+        </div>
+        <div id="power-ui">
+            <div>POWER: <span id="power-display">100</span>%</div>
+            <div id="power-bar-container"><div id="power-bar-fill"></div></div>
+            <div id="usage-display">
+                <div class="usage-segment active"></div>
+                <div class="usage-segment"></div>
+                <div class="usage-segment"></div>
+                <div class="usage-segment"></div>
+            </div>
+            USAGE
+        </div>
+
+        <div id="office-view">
+            <div class="door-frame left">
+                <div class="controls left">
+                    <div class="btn btn-door" id="btn-door-left">D</div>
+                </div>
+                <div class="door" id="door-left"></div>
+                <div class="door-label">PINTU BARAT</div>
+            </div>
+
+            <!-- <div id="enemy-visual"></div> -->
+
+            <div class="door-frame right">
+                <div class="controls right">
+                    <div class="btn btn-door" id="btn-door-right">D</div>
+                </div>
+                <div class="door" id="door-right"></div>
+                <div class="door-label">PINTU TIMUR</div>
+            </div>
+        </div>
+
+        <div id="camera-system">
+            <div id="camera-static"></div>
+            <div id="camera-view-window">CAM 1A - SHOW STAGE</div>
+            <div id="camera-map">
+                <button class="cam-btn active" data-cam="1">CAM 1</button>
+                <button class="cam-btn" data-cam="2">CAM 2</button>
+                <button class="cam-btn" data-cam="3">CAM 3</button>
+                <button class="cam-btn" data-cam="4">CAM 4</button>
+            </div>
+        </div>
+
+        <button id="camera-toggle">OPEN MONITOR</button>
+    </div>
+
+    <script>
+        /* --- JAVASCRIPT: Game Logic & Asset Management --- */
+
+        // ==========================================
+        // 🛠️ CUSTOMIZABLE ASSETS
+        // Paste your file paths or URLs here!
+        // ==========================================
+        const STATIC_SOUND = 'https://actions.google.com/sounds/v1/water/radio_static.ogg'; 
+
+        
+        const OFFICE_BACKGROUND_IMG = '/asset/img/open_office.png'; // 🖼️ Detailed Indonesian room background
+        // ==========================================
+        // 🏢 OFFICE IMAGES (STATE MACHINE)
+        // ==========================================
+        const OFFICE_IMAGES = {
+            base: '/asset/img/open_office.png', // Empty office, both doors open
+            
+            // Enemy is visible in the open doorway
+            enemyLeft: '/asset/img/enemyLeft.jpeg',
+            enemyRight: '/asset/img/enemyRight.jpeg',
+            
+            // Door closed states (and what happens if an enemy is at the other open door)
+            leftDoorClosed: '/asset/img/leftDoorClosed.png',
+            leftDoorClosed_enemyRight: '/asset/img/rightLightEnemy_leftClosed.png',
+            
+            rightDoorClosed: '/asset/img/rightDoorClosed.png',
+            rightDoorClosed_enemyLeft: '/asset/img/leftLightEnemy_rightClosed.png',
+            
+            bothDoorsClosed: '/asset/img/office.png'
+        };
+        const JUMPSCARE_IMAGE = '/asset/img/prabowo.jpg'; // A horrifying Indonesian ghostly mask
+        const JUMPSCARE_SOUND = '/asset/sound/antek-antek.mp3'; // LOUD, distressed scream
+        
+        // ==========================================
+        // 📷 CAMERA IMAGES (EMPTY VS ENEMY)
+        // Paste your image URLs inside the quotes!
+        // ==========================================
+        const CAMERA_VIEWS = {
+            1: { 
+                empty: '/asset/img/cam1.png', 
+                enemy: '/asset/img/cam1_prabowo.png' 
+            },
+            2: { 
+                empty: '/asset/img/cam2.png', 
+                enemy: '/asset/img/cam2_prabowo.png' 
+            },
+            3: { 
+                empty: '/asset/img/cam3.png', 
+                enemy: '/asset/img/cam3_prabowo.png' 
+            },
+            4: { 
+                // If Cam 4 is just static or a blind spot, you can make both the same, 
+                // or add an enemy image if you want them to show up here!
+                empty: 'URL_FOR_CAM4_STATIC_OR_EMPTY_HERE', 
+                enemy: 'URL_FOR_CAM4_STATIC_OR_EMPTY_HERE'  
+            }
+        };
+
+        const BACKGROUND_MUSIC = ''; // e.g., 'assets/music/ambient_hum.ogg'
+
+        // Game State Variables
+        let power = 100;
+        let hour = 0; // 0 = 12 AM, 1 = 1 AM, etc.
+        let usage = 1;
+        let isGameOver = false;
+
+        // 💾 PULL SAVE DATA
+        let currentNight = parseInt(localStorage.getItem('wowok_save')) || 1;
+        document.getElementById('night-display').innerText = `NIGHT ${currentNight}`;
+
+        // Mechanics State
+        let leftDoorClosed = false;
+        let rightDoorClosed = false;
+        // let leftLightOn = false;
+        // let rightLightOn = false;
+        let cameraOpen = false;
+        let currentCam = 1;
+
+        // AI State (0 = Stage, 1 = Cam2, 2 = Cam3, 3 = Left Hall, 4 = Right Hall)
+        let enemyLocation = 0; 
+        const ENEMY_LOCATIONS = {
+            STAGE: 0,
+            CAM2: 1,
+            CAM3: 2,
+            LEFT_HALL: 3,
+            RIGHT_HALL: 4
+        };
+
+        // DOM Elements
+        const powerDisplay = document.getElementById('power-display');
+        const powerBarFill = document.getElementById('power-bar-fill');
+        const usageSegments = document.querySelectorAll('#usage-display .usage-segment');
+        const timeDisplay = document.getElementById('time-display');
+        const doorLeft = document.getElementById('door-left');
+        const doorRight = document.getElementById('door-right');
+        const btnDoorLeft = document.getElementById('btn-door-left');
+        const btnDoorRight = document.getElementById('btn-door-right');
+        // const btnLightLeft = document.getElementById('btn-light-left');
+        // const btnLightRight = document.getElementById('btn-light-right');
+        const cameraToggle = document.getElementById('camera-toggle');
+        const cameraSystem = document.getElementById('camera-system');
+        const cameraViewWindow = document.getElementById('camera-view-window');
+        const camBtns = document.querySelectorAll('.cam-btn');
+        const jumpscareScreen = document.getElementById('jumpscare-screen');
+        // const enemyVisual = document.getElementById('enemy-visual');
+        const cameraStatic = document.getElementById('camera-static');
+
+        // Audio Objects
+        const jumpscareAudio = new Audio(JUMPSCARE_SOUND);
+        const staticAudio = new Audio(STATIC_SOUND);
+        staticAudio.volume = 0.3; // Keep it low so it doesn't blast your ears
+        const movementAudio = new Audio('/asset/sound/hidup-jokowi.mp3');
+        // --- Core Loops ---
+
+        // 1. Clock Loop (1 hour every 20 seconds for production, 15s for testing)
+        const clockInterval = setInterval(() => {
+            if (isGameOver) return;
+            hour++;
+            if (hour > 5) {
+                timeDisplay.innerText = '6 AM';
+                winGame();
+                return;
+            }
+            timeDisplay.innerText = hour === 0 ? '12 AM' : `${hour} AM`;
+        }, 15000);
+
+        // 2. Power Drain Loop (Scales with Night)
+        // Base drain increases by 0.03 every night. 
+        // Night 1 = 0.15, Night 2 = 0.18, Night 5 = 0.27
+        const baseDrainMultiplier = 0.12 + (currentNight * 0.03); 
+
+        const powerInterval = setInterval(() => {
+            if (isGameOver) return;
+            
+            usage = 1 + (leftDoorClosed ? 1 : 0) + (rightDoorClosed ? 1 : 0) + (cameraOpen ? 1 : 0);
+            
+            usageSegments.forEach((seg, index) => {
+                if (index < usage) seg.classList.add('active');
+                else seg.classList.remove('active');
+            });
+
+            // ⚠️ Apply the scaling difficulty drain!
+            power -= (usage * baseDrainMultiplier); 
+            
+            if (power <= 0) {
+                power = 0;
+                triggerPowerOut();
+            }
+            powerDisplay.innerText = Math.max(0, Math.floor(power));
+            
+            powerBarFill.style.width = `${power}%`;
+            if (power > 50) powerBarFill.style.backgroundColor = '#4caf50';
+            else if (power > 20) powerBarFill.style.backgroundColor = '#f1c40f';
+            else powerBarFill.style.backgroundColor = '#e74c3c';
+        }, 1000);
+
+        // 3. AI Movement Loop (Scales with Night)
+        let aiInterval;
+
+        // 🟢 Grace period shrinks by 2 seconds each night (Minimum 5 seconds)
+        // Night 1: 15s | Night 2: 13s | Night 5: 7s
+        const gracePeriod = Math.max(5000, 17000 - (currentNight * 2000)); 
+        
+        // 🟢 Move chance threshold lowers each night (Wowok moves more often)
+        // Night 1: > 0.65 (35% chance) | Night 5: > 0.25 (75% chance!)
+        const moveThreshold = Math.max(0.20, 0.75 - (currentNight * 0.10));
+
+        // 🟢 Reaction time shrinks by 1 second each night (Minimum 2.5 seconds)
+        // Night 1: 7s | Night 2: 6s | Night 5: 3s
+        const reactionTime = Math.max(2500, 8000 - (currentNight * 1000));
+
+        setTimeout(() => {
+            
+            aiInterval = setInterval(() => {
+                if (isGameOver) return;
+                
+                if (cameraOpen) updateCameraVisuals();
+                updateOfficeVisuals();
+
+                const moveChance = Math.random();
+                
+                // ⚠️ Use dynamic threshold based on the current night!
+                if (moveChance > moveThreshold) { 
+                    const oldLoc = enemyLocation;
+                    
+                    if (enemyLocation === ENEMY_LOCATIONS.STAGE) enemyLocation = ENEMY_LOCATIONS.CAM2; 
+                    else if (enemyLocation === ENEMY_LOCATIONS.CAM2) enemyLocation = Math.random() > 0.5 ? ENEMY_LOCATIONS.LEFT_HALL : ENEMY_LOCATIONS.CAM3;
+                    else if (enemyLocation === ENEMY_LOCATIONS.CAM3) enemyLocation = ENEMY_LOCATIONS.RIGHT_HALL;
+                    else enemyLocation = ENEMY_LOCATIONS.CAM2;
+                    
+                    if (enemyLocation !== oldLoc) {
+                        movementAudio.currentTime = 0; 
+                        movementAudio.play().catch(e => console.log("Audio blocked"));
+                    }
+
+                    if (cameraOpen) updateCameraVisuals();
+                }
+
+                // ⚠️ Use dynamic reaction time!
+                if (enemyLocation === ENEMY_LOCATIONS.LEFT_HALL && !leftDoorClosed) {
+                    setTimeout(() => {
+                        if (!leftDoorClosed && enemyLocation === ENEMY_LOCATIONS.LEFT_HALL) triggerJumpscare();
+                    }, reactionTime); 
+                }
+                
+                if (enemyLocation === ENEMY_LOCATIONS.RIGHT_HALL && !rightDoorClosed) {
+                    setTimeout(() => {
+                        if (!rightDoorClosed && enemyLocation === ENEMY_LOCATIONS.RIGHT_HALL) triggerJumpscare();
+                    }, reactionTime); 
+                }
+
+            }, 5000); 
+
+        }, gracePeriod);
+
+
+        // --- Interactions ---
+
+        // Doors
+        btnDoorLeft.addEventListener('click', () => {
+            if(power <= 0) return;
+            leftDoorClosed = !leftDoorClosed;
+            btnDoorLeft.classList.toggle('active');
+            updateOfficeVisuals(); // Update the background!
+        });
+
+        btnDoorRight.addEventListener('click', () => {
+            if(power <= 0) return;
+            rightDoorClosed = !rightDoorClosed;
+            btnDoorRight.classList.toggle('active');
+            updateOfficeVisuals(); 
+        });
+
+        // Lights
+        // btnLightLeft.addEventListener('mousedown', () => {
+        //     if(power <= 0 || leftDoorClosed) return; // Can't use light if door is closed
+        //     leftLightOn = true;
+        //     btnLightLeft.classList.add('active');
+        //     updateOfficeVisuals(); 
+        // });
+        // btnLightLeft.addEventListener('mouseup', () => {
+        //     leftLightOn = false;
+        //     btnLightLeft.classList.remove('active');
+        //     updateOfficeVisuals(); 
+        // });
+
+        // btnLightRight.addEventListener('mousedown', () => {
+        //     if(power <= 0 || rightDoorClosed) return; 
+        //     rightLightOn = true;
+        //     btnLightRight.classList.add('active');
+        //     updateOfficeVisuals();
+        // });
+        // btnLightRight.addEventListener('mouseup', () => {
+        //     rightLightOn = false;
+        //     btnLightRight.classList.remove('active');
+        //     updateOfficeVisuals();
+        // });
+
+        // Camera Monitor Toggle
+        cameraToggle.addEventListener('click', () => {
+            if(power <= 0) return;
+            cameraOpen = !cameraOpen;
+            cameraSystem.style.display = cameraOpen ? 'block' : 'none';
+            cameraToggle.innerText = cameraOpen ? 'CLOSE MONITOR' : 'OPEN MONITOR';
+            updateCameraVisuals();
+        });
+
+        // Camera Switching (Updates the image view based on selection)
+        camBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                camBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentCam = parseInt(e.target.dataset.cam);
+                updateCameraVisuals();
+            });
+        });
+
+        function updateCameraVisuals() {
+            if (!cameraOpen) return;
+            
+            // 📺 1. TRIGGER STATIC VISUAL AND AUDIO FIRST
+            staticAudio.currentTime = 0;
+            staticAudio.play().catch(e => console.log("Audio blocked"));
+            cameraStatic.style.opacity = '0.7'; // Show static at 70% opacity
+
+            // 2. Figure out if the enemy is in the camera view
+            let isEnemyHere = false;
+            if (currentCam === 1 && enemyLocation === ENEMY_LOCATIONS.STAGE) isEnemyHere = true;
+            if (currentCam === 2 && enemyLocation === ENEMY_LOCATIONS.CAM2) isEnemyHere = true;
+            if (currentCam === 3 && enemyLocation === ENEMY_LOCATIONS.CAM3) isEnemyHere = true;
+
+            // 3. Select the correct image based on enemy presence
+            let newImg = OFFICE_BACKGROUND_IMG; 
+            if (CAMERA_VIEWS[currentCam]) {
+                newImg = isEnemyHere ? CAMERA_VIEWS[currentCam].enemy : CAMERA_VIEWS[currentCam].empty;
+            }
+            
+            // 📺 4. WAIT 300ms, THEN REVEAL THE CAMERA FEED
+            setTimeout(() => {
+                cameraViewWindow.style.backgroundImage = `url('${newImg}')`;
+                
+                let text = `CAM ${currentCam} - `;
+                cameraViewWindow.innerText = text + (isEnemyHere ? "⚠️ ADA WOWOK" : "NORMAL"); 
+                
+                // Hide the static
+                cameraStatic.style.opacity = '0.1';
+            }, 300); // 300 milliseconds of static transition
+        }
+        // --- Visual State Manager for the Office ---
+        // --- Visual State Manager for the Office (Simplified) ---
+        function updateOfficeVisuals() {
+            if (power <= 0) return;
+
+            let newBg = OFFICE_IMAGES.base;
+            const enemyAtLeft = (enemyLocation === ENEMY_LOCATIONS.LEFT_HALL);
+            const enemyAtRight = (enemyLocation === ENEMY_LOCATIONS.RIGHT_HALL);
+
+            if (leftDoorClosed && rightDoorClosed) {
+                newBg = OFFICE_IMAGES.bothDoorsClosed;
+            } 
+            else if (leftDoorClosed) {
+                // Left is closed. Check if we need to render the enemy on the right.
+                newBg = enemyAtRight ? OFFICE_IMAGES.leftDoorClosed_enemyRight : OFFICE_IMAGES.leftDoorClosed;
+            } 
+            else if (rightDoorClosed) {
+                // Right is closed. Check if we need to render the enemy on the left.
+                newBg = enemyAtLeft ? OFFICE_IMAGES.rightDoorClosed_enemyLeft : OFFICE_IMAGES.rightDoorClosed;
+            } 
+            else {
+                // Both doors are open. Is anyone there?
+                if (enemyAtLeft) newBg = OFFICE_IMAGES.enemyLeft;
+                else if (enemyAtRight) newBg = OFFICE_IMAGES.enemyRight;
+                else newBg = OFFICE_IMAGES.base;
+            }
+
+            document.getElementById('game-container').style.backgroundImage = `url('${newBg}')`;
+        }
+
+        // --- Game Ending Sequences ---
+
+        function triggerPowerOut() {
+            // Power is gone, force doors open, light off, monitor down
+            leftDoorClosed = false; rightDoorClosed = false;
+            doorLeft.classList.remove('closed'); doorRight.classList.remove('closed');
+            cameraOpen = false; cameraSystem.style.display = 'none';
+            // Darken the entire office view
+            document.getElementById('office-view').style.background = '#000';
+            
+            // Play a powering down or static noise, wait, then jumpscare
+            setTimeout(() => {
+                triggerJumpscare();
+            }, 5000); // 5 seconds of darkness
+        }
+
+        function triggerJumpscare() {
+            if (isGameOver) return;
+            isGameOver = true;
+            
+            // Hide camera system and show the jumpscare div with specific image and sound
+            cameraSystem.style.display = 'none';
+            jumpscareScreen.style.display = 'block';
+            jumpscareScreen.style.backgroundImage = `url('${JUMPSCARE_IMAGE}')`;
+            
+            jumpscareAudio.play();
+            
+            // Game end notification after a delay
+            setTimeout(() => {
+                alert("Game Over! Tamat Riwayatmu. Refreshen.");
+            }, 3000); // Delay after jumpscare
+        }
+
+        function winGame() {
+            if (isGameOver) return;
+            isGameOver = true;
+            
+            // 💾 SAVE PROGRESS FOR THE NEXT NIGHT!
+            localStorage.setItem('wowok_save', currentNight + 1);
+
+            // Clear the screen and show a link back to the menu
+            document.getElementById('game-container').innerHTML = `
+                <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%;">
+                    <h1 style="color:#f1c40f; font-size:4rem; text-shadow:0 0 10px #fff; margin-bottom: 20px;">6 AM<br>YOU SURVIVED!</h1>
+                    <a href="menu.html" style="color:white; font-size:1.5rem; text-decoration:none; border:2px solid white; padding:10px 20px; border-radius:4px; font-family:'Courier New', Courier, monospace;">>> RETURN TO MENU <<</a>
+                </div>
+            `;
+        }
+
+    </script>
+</body>
+</html>
