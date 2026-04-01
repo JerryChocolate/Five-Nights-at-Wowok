@@ -394,11 +394,33 @@
         /* --- JAVASCRIPT: Game Logic & Asset Management --- */
 
         // ==========================================
-        // 🛠️ CUSTOMIZABLE ASSETS
-        // Paste your file paths or URLs here!
+        // CUSTOMIZABLE ASSETS
+        // 
         // ==========================================
         const STATIC_SOUND = 'https://actions.google.com/sounds/v1/water/radio_static.ogg'; 
         const BACKGROUND_MUSIC = 'asset/sound/codWaw.mp3'; // e.g., 'assets/music/ambient_hum.ogg'
+
+        // --- AGGRESSIVE IMAGE PRELOADER FOR GAME.HTML ---
+const allGameImages = [
+    OFFICE_IMAGES.base,
+    OFFICE_IMAGES.enemyLeft,
+    OFFICE_IMAGES.enemyRight,
+    OFFICE_IMAGES.leftDoorClosed,
+    OFFICE_IMAGES.leftDoorClosed_enemyRight,
+    OFFICE_IMAGES.rightDoorClosed,
+    OFFICE_IMAGES.rightDoorClosed_enemyLeft,
+    OFFICE_IMAGES.bothDoorsClosed,
+    JUMPSCARE_IMAGE,
+    CAMERA_VIEWS[1].empty, CAMERA_VIEWS[1].enemy,
+    CAMERA_VIEWS[2].empty, CAMERA_VIEWS[2].enemy,
+    CAMERA_VIEWS[3].empty, CAMERA_VIEWS[3].enemy
+];
+
+// Force the browser to load and hold these in memory immediately
+allGameImages.forEach(src => {
+    const img = new Image();
+    img.src = src;
+});
         
         const OFFICE_BACKGROUND_IMG = 'asset/img/open_office.png'; // 🖼️ Detailed Indonesian room background
         // ==========================================
@@ -424,8 +446,8 @@
         const JUMPSCARE_SOUND = 'asset/sound/antek-antek.mp3'; // LOUD, distressed scream
         
         // ==========================================
-        // 📷 CAMERA IMAGES (EMPTY VS ENEMY)
-        // Paste your image URLs inside the quotes!
+        //  CAMERA IMAGES (EMPTY VS ENEMY)
+        // 
         // ==========================================
         const CAMERA_VIEWS = {
             1: { 
