@@ -182,10 +182,10 @@
         // --- JAVASCRIPT: Ambient Audio & Transitions ---
         
         // Optional: Add some creepy ambient noise that plays on the menu
-        const AMBIENT_MUSIC = 'https://actions.google.com/sounds/v1/weather/wind_howl_and_howling_wind.ogg';
+        const AMBIENT_MUSIC = 'asset/sound/codWaw.mp3';
         const bgm = new Audio(AMBIENT_MUSIC);
         bgm.loop = true;
-        bgm.volume = 0.4;
+        bgm.volume = 0.8;
 
         // Browsers block autoplaying audio, so we wait for the user to click ANYWHERE to start the music
         document.body.addEventListener('click', () => {
