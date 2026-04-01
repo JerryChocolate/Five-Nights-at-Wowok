@@ -415,7 +415,7 @@
         // 
         // ==========================================
         const STATIC_SOUND = 'https://actions.google.com/sounds/v1/water/radio_static.ogg'; 
-        const BACKGROUND_MUSIC = 'asset/sound/codWaw.mp3'; // e.g., 'assets/music/ambient_hum.ogg'
+        const BACKGROUND_MUSIC = 'asset/sound/ambiance.mp3'; // e.g., 'assets/music/ambient_hum.ogg'
 
         // --- AGGRESSIVE IMAGE PRELOADER FOR GAME.HTML ---
 const allGameImages = [
@@ -547,7 +547,7 @@ allGameImages.forEach(src => {
 
         const bgMusic = new Audio(BACKGROUND_MUSIC);
         bgMusic.loop = true;
-        bgMusic.volume = 0.25;
+        bgMusic.volume = 1;
         bgMusic.play().catch(() => {
             // If the browser blocks it, wait for the player to click anywhere, then play
             document.body.addEventListener('click', () => {
