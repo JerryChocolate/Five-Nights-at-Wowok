@@ -48,7 +48,7 @@
             height: 100%;
             max-height: 768px;
             background-color: var(--bg-texture-color);
-            background-image: url('asset/img/open_office.png'); /* 🖼️ DETAILED BACKGROUND IMAGE OF THE OFFICE */
+            background-image: url('asset/img/open_office.jpg'); /* 🖼️ DETAILED BACKGROUND IMAGE OF THE OFFICE */
             background-size: cover;
             background-position: center;
             box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
@@ -422,25 +422,25 @@ allGameImages.forEach(src => {
     img.src = src;
 });
         
-        const OFFICE_BACKGROUND_IMG = 'asset/img/open_office.png'; // 🖼️ Detailed Indonesian room background
+        const OFFICE_BACKGROUND_IMG = 'asset/img/open_office.jpg'; // 🖼️ Detailed Indonesian room background
         // ==========================================
         // 🏢 OFFICE IMAGES (STATE MACHINE)
         // ==========================================
         const OFFICE_IMAGES = {
-            base: 'asset/img/open_office.png', // Empty office, both doors open
+            base: 'asset/img/open_office.jpg', // Empty office, both doors open
             
             // Enemy is visible in the open doorway
             enemyLeft: 'asset/img/enemyLeft.jpeg',
             enemyRight: 'asset/img/enemyRight.jpeg',
             
             // Door closed states (and what happens if an enemy is at the other open door)
-            leftDoorClosed: 'asset/img/leftDoorClosed.png',
-            leftDoorClosed_enemyRight: 'asset/img/rightLightEnemy_leftClosed.png',
+            leftDoorClosed: 'asset/img/leftDoorClosed.jpg',
+            leftDoorClosed_enemyRight: 'asset/img/rightLightEnemy_leftClosed.jpg',
             
-            rightDoorClosed: 'asset/img/rightDoorClosed.png',
-            rightDoorClosed_enemyLeft: 'asset/img/leftLightEnemy_rightClosed.png',
+            rightDoorClosed: 'asset/img/rightDoorClosed.jpg',
+            rightDoorClosed_enemyLeft: 'asset/img/leftLightEnemy_rightClosed.jpg',
             
-            bothDoorsClosed: 'asset/img/office.png'
+            bothDoorsClosed: 'asset/img/office.jpg'
         };
         const JUMPSCARE_IMAGE = 'asset/img/prabowo.jpg'; // A horrifying Indonesian ghostly mask
         const JUMPSCARE_SOUND = 'asset/sound/antek-antek.mp3'; // LOUD, distressed scream
@@ -451,16 +451,16 @@ allGameImages.forEach(src => {
         // ==========================================
         const CAMERA_VIEWS = {
             1: { 
-                empty: 'asset/img/cam1.png', 
-                enemy: 'asset/img/cam1_prabowo.png' 
+                empty: 'asset/img/cam1.jpg', 
+                enemy: 'asset/img/cam1_prabowo.jpg' 
             },
             2: { 
-                empty: 'asset/img/cam2.png', 
-                enemy: 'asset/img/cam2_prabowo.png' 
+                empty: 'asset/img/cam2.jpg', 
+                enemy: 'asset/img/cam2_prabowo.jpg' 
             },
             3: { 
-                empty: 'asset/img/cam3.png', 
-                enemy: 'asset/img/cam3_prabowo.png' 
+                empty: 'asset/img/cam3.jpg', 
+                enemy: 'asset/img/cam3_prabowo.jpg' 
             },
             4: { 
                 // If Cam 4 is just static or a blind spot, you can make both the same, 
