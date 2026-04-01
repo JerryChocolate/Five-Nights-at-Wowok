@@ -319,6 +319,23 @@
             display: none;
             z-index: 999;
         }
+        /* The violent shaking animation */
+        @keyframes jumpscareShake {
+            0% { transform: translate(15px, 15px) scale(1.1); }
+            20% { transform: translate(-20px, -15px) scale(1.2); }
+            40% { transform: translate(20px, -20px) scale(1.1); }
+            60% { transform: translate(-15px, 20px) scale(1.3); }
+            80% { transform: translate(25px, 25px) scale(1.1); }
+            100% { transform: translate(0, 0) scale(1.2); }
+        }
+
+        /* Applies the animation rapidly and infinitely while the screen is up */
+        #jumpscare-screen.active-scare {
+            display: block !important;
+            animation: jumpscareShake 0.05s infinite;
+            /* Optional: Add a subtle red flash filter */
+            box-shadow: inset 0 0 150px rgba(255, 0, 0, 0.8); 
+        }
 
         /* Enemy indicator visual for the light mechanics */
         #enemy-visual {
@@ -784,18 +801,27 @@ allGameImages.forEach(src => {
         function triggerJumpscare() {
             if (isGameOver) return;
             isGameOver = true;
-            
-            // Hide camera system and show the jumpscare div with specific image and sound
+    
+    // 1. KILL ALL OTHER AUDIO INSTANTLY
+            bgMusic.pause();
+            staticAudio.pause();
+            movementAudio.pause();
+
+    // 2. Hide camera and show jumpscare
             cameraSystem.style.display = 'none';
             jumpscareScreen.style.display = 'block';
+    
+    // Add our new shake animation class (see CSS below)
+            jumpscareScreen.classList.add('active-scare');
             jumpscareScreen.style.backgroundImage = `url('${JUMPSCARE_IMAGE}')`;
-            
+    
+    // 3. FORCE AUDIO TO START AT 0 AND PLAY
+            jumpscareAudio.currentTime = 0; 
             jumpscareAudio.play();
-            
-            // Game end notification after a delay
+    
             setTimeout(() => {
                 alert("Game Over! Tamat Riwayatmu. Refreshen.");
-            }, 3000); // Delay after jumpscare
+            }, 3000); 
         }
 
         function winGame() {
