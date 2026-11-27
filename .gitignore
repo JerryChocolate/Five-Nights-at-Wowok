@@ -1,0 +1,22 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*~
+
+# Agent tooling (local skills/config)
+.agent/
+.gemini/
+
+# Dependencies and build output
+node_modules/
+dist/
+
+# Logs and temp files
+*.log
+*.tmp

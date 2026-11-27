@@ -193,15 +193,20 @@
             bgm.play().catch(e => console.log("Audio still blocked"));
         }, { once: true }); // Only fires on the very first click
 
-        // Add a click sound when starting a new game
-        const startBtn = document.getElementById('new-game-btn');
-        startBtn.addEventListener('click', (e) => {
-            // We don't prevent default here because we DO want it to go to index.html
-            // But we could play a quick sound right before it loads!
-            const blip = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-            blip.play();
-        });
-        
+        // Local beep (Web Audio) instead of an external file
+        function blip() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.frequency.value = 880;
+                gain.gain.value = 0.1;
+                osc.connect(gain).connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.1);
+            } catch (e) {}
+        }
+
         // --- Save Data Logic ---
         const savedNight = parseInt(localStorage.getItem('wowok_save')) || 1;
         const continueBtn = document.getElementById('continue-btn');
@@ -234,26 +239,15 @@
         // 3. Button Click Events
         newGameBtn.addEventListener('click', () => {
             localStorage.setItem('wowok_save', 1);
-            const blip = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-            blip.play();
+            blip();
         });
-
-        // Ensure clicking Night 6 forces the game state to 6
-        night6Btn.addEventListener('click', (e) => {
-             if (!night6Btn.classList.contains('disabled')) {
-                 localStorage.setItem('wowok_save', 6);
-                 const blip = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-                 blip.play();
-             }
+        night6Btn.addEventListener('click', () => {
+            if (!night6Btn.classList.contains('disabled')) {
+                localStorage.setItem('wowok_save', 6);
+                blip();
+            }
         });
-
-        // When clicking New Game, reset the save file back to 1
-        newGameBtn.addEventListener('click', () => {
-            localStorage.setItem('wowok_save', 1);
-            const blip = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
-            blip.play();
-        });
-        // --- 🖼️ ASSET PRELOADER ---
+        // --- ASSET PRELOADER ---
         // List every heavy image your game uses here
         const assetsToPreload = [
             'asset/img/open_office.jpg',

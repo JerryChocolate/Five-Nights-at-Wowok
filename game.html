@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Five Nights at Wowok</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap">
     <link rel="icon" type="image/x-icon" href="asset/img/wowok-icon.ico">
     <style>
         /* --- CSS: Visual Styling & Layout (Hybrid Strategy) --- */
@@ -21,7 +22,6 @@
         }
 
         /* Distressed font for the UI */
-        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
 
         * {
             box-sizing: border-box;
@@ -184,8 +184,8 @@
             border-radius: 4px;
             z-index: 8;
         }
-        .controls.left { left: -70px; }
-        .controls.right { right: -70px; }
+        .controls.left { left: 50%; transform: translate(-50%, -50%); }
+        .controls.right { right: 50%; transform: translate(50%, -50%); }
 
         .btn {
             width: 40px; height: 40px;
@@ -262,7 +262,7 @@
             color: rgba(255,255,255,0.4);
             text-transform: uppercase;
             letter-spacing: 3px;
-            background-image: url('https://i.pinimg.com/736x/98/38/8c/98388c6d00552824044a449184e3729e.jpg'); /* Fallback for when no camera is selected */
+            background-color: #000;
             background-size: cover;
             background-position: center;
             opacity: 1;
@@ -415,7 +415,7 @@
         // CUSTOMIZABLE ASSETS
         // 
         // ==========================================
-        const STATIC_SOUND = 'https://actions.google.com/sounds/v1/water/radio_static.ogg'; 
+        // Static sound is synthesized with Web Audio (no external file)
         const BACKGROUND_MUSIC = 'asset/sound/ambiance.mp3'; // e.g., 'assets/music/ambient_hum.ogg'
 
         // --- AGGRESSIVE IMAGE PRELOADER FOR GAME.HTML ---
@@ -457,10 +457,10 @@ allGameImages.forEach(src => {
             
             // Door closed states (and what happens if an enemy is at the other open door)
             leftDoorClosed: 'asset/img/leftDoorClosed.jpg',
-            leftDoorClosed_enemyRight: 'asset/img/rightLightEnemy_leftClosed.jpg',
+            leftDoorClosed_enemyRight: 'asset/img/rightLightEnemy_LeftClosed.jpg',
             
             rightDoorClosed: 'asset/img/rightDoorClosed.jpg',
-            rightDoorClosed_enemyLeft: 'asset/img/leftLightEnemy_rightClosed.jpg',
+            rightDoorClosed_enemyLeft: 'asset/img/leftLightEnemy_RightClosed.jpg',
             
             bothDoorsClosed: 'asset/img/office.jpg'
         };
@@ -487,8 +487,8 @@ allGameImages.forEach(src => {
             4: { 
                 // If Cam 4 is just static or a blind spot, you can make both the same, 
                 // or add an enemy image if you want them to show up here!
-                empty: 'URL_FOR_CAM4_STATIC_OR_EMPTY_HERE', 
-                enemy: 'URL_FOR_CAM4_STATIC_OR_EMPTY_HERE'  
+                empty: null, // NO SIGNAL
+                enemy: null
             }
         };
 
@@ -497,6 +497,8 @@ allGameImages.forEach(src => {
         let hour = 0; // 0 = 12 AM, 1 = 1 AM, etc.
         let usage = 1;
         let isGameOver = false;
+        let powerOutTriggered = false;
+        let leftAttackTimer = null, rightAttackTimer = null;
 
         // 💾 PULL SAVE DATA
         let currentNight = parseInt(localStorage.getItem('wowok_save')) || 1;
@@ -542,8 +544,28 @@ allGameImages.forEach(src => {
         // Audio Objects
         const jumpscareAudio = new Audio(JUMPSCARE_SOUND);
         jumpscareAudio.volume = 1.0;
-        const staticAudio = new Audio(STATIC_SOUND);
-        staticAudio.volume = 0.3; // Keep it low so it doesn't blast your ears
+        // Synthesized static burst (Web Audio)
+        let audioCtx = null;
+        const staticAudio = {
+            currentTime: 0,
+            pause() {},
+            play() {
+                try {
+                    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+                    const len = Math.floor(audioCtx.sampleRate * 0.3);
+                    const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+                    const d = buf.getChannelData(0);
+                    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+                    const src = audioCtx.createBufferSource();
+                    const gain = audioCtx.createGain();
+                    gain.gain.value = 0.15;
+                    src.buffer = buf;
+                    src.connect(gain).connect(audioCtx.destination);
+                    src.start();
+                } catch (e) {}
+                return Promise.resolve();
+            }
+        };
         const movementAudio = new Audio('asset/sound/hidup-jokowi.mp3');
 
         const bgMusic = new Audio(BACKGROUND_MUSIC);
@@ -589,7 +611,7 @@ allGameImages.forEach(src => {
             
             if (power <= 0) {
                 power = 0;
-                triggerPowerOut();
+                if (!powerOutTriggered) { powerOutTriggered = true; triggerPowerOut(); }
             }
             powerDisplay.innerText = Math.max(0, Math.floor(power));
             
@@ -642,17 +664,22 @@ allGameImages.forEach(src => {
                 }
 
                 // ⚠️ Use dynamic reaction time!
-                if (enemyLocation === ENEMY_LOCATIONS.LEFT_HALL && !leftDoorClosed) {
-                    setTimeout(() => {
+                // One attack timer per hall; cancelled when the enemy leaves
+                if (enemyLocation === ENEMY_LOCATIONS.LEFT_HALL && !leftDoorClosed && !leftAttackTimer) {
+                    leftAttackTimer = setTimeout(() => {
+                        leftAttackTimer = null;
                         if (!leftDoorClosed && enemyLocation === ENEMY_LOCATIONS.LEFT_HALL) triggerJumpscare();
-                    }, reactionTime); 
+                    }, reactionTime);
                 }
-                
-                if (enemyLocation === ENEMY_LOCATIONS.RIGHT_HALL && !rightDoorClosed) {
-                    setTimeout(() => {
+                if (enemyLocation !== ENEMY_LOCATIONS.LEFT_HALL && leftAttackTimer) { clearTimeout(leftAttackTimer); leftAttackTimer = null; }
+
+                if (enemyLocation === ENEMY_LOCATIONS.RIGHT_HALL && !rightDoorClosed && !rightAttackTimer) {
+                    rightAttackTimer = setTimeout(() => {
+                        rightAttackTimer = null;
                         if (!rightDoorClosed && enemyLocation === ENEMY_LOCATIONS.RIGHT_HALL) triggerJumpscare();
-                    }, reactionTime); 
+                    }, reactionTime);
                 }
+                if (enemyLocation !== ENEMY_LOCATIONS.RIGHT_HALL && rightAttackTimer) { clearTimeout(rightAttackTimer); rightAttackTimer = null; }
 
             }, 5000); 
 
@@ -735,17 +762,18 @@ allGameImages.forEach(src => {
             if (currentCam === 3 && enemyLocation === ENEMY_LOCATIONS.CAM3) isEnemyHere = true;
 
             // 3. Select the correct image based on enemy presence
-            let newImg = OFFICE_BACKGROUND_IMG; 
-            if (CAMERA_VIEWS[currentCam]) {
-                newImg = isEnemyHere ? CAMERA_VIEWS[currentCam].enemy : CAMERA_VIEWS[currentCam].empty;
-            }
+            let newImg = isEnemyHere ? CAMERA_VIEWS[currentCam].enemy : CAMERA_VIEWS[currentCam].empty;
             
             // 📺 4. WAIT 300ms, THEN REVEAL THE CAMERA FEED
             setTimeout(() => {
-                cameraViewWindow.style.backgroundImage = `url('${newImg}')`;
-                
-                let text = `CAM ${currentCam} - `;
-                cameraViewWindow.innerText = text + (isEnemyHere ? "⚠️ ADA WOWOK" : "NORMAL"); 
+                if (!cameraOpen) return;
+                if (newImg) {
+                    cameraViewWindow.style.backgroundImage = `url('${newImg}')`;
+                    cameraViewWindow.innerText = `CAM ${currentCam} - ` + (isEnemyHere ? "⚠️ ADA WOWOK" : "NORMAL");
+                } else {
+                    cameraViewWindow.style.backgroundImage = "url('asset/gif/static_noise.gif')";
+                    cameraViewWindow.innerText = `CAM ${currentCam} - NO SIGNAL`;
+                }
                 
                 // Hide the static
                 cameraStatic.style.opacity = '0.1';
@@ -790,6 +818,7 @@ allGameImages.forEach(src => {
             cameraOpen = false; cameraSystem.style.display = 'none';
             // Darken the entire office view
             document.getElementById('office-view').style.background = '#000';
+            document.getElementById('game-container').style.backgroundImage = 'none';
             // Kill the bgm    
             bgMusic.pause();
             
@@ -818,11 +847,10 @@ allGameImages.forEach(src => {
     
     // 3. FORCE AUDIO TO START AT 0 AND PLAY
             jumpscareAudio.currentTime = 0; 
-            jumpscareAudio.play();
+            jumpscareAudio.play().catch(() => {});
     
-            setTimeout(() => {
-                alert("Game Over! Tamat Riwayatmu. Refreshen.");
-            }, 3000); 
+            clearInterval(clockInterval); clearInterval(powerInterval); clearInterval(aiInterval);
+            setTimeout(() => { window.location.href = 'index.html'; }, 3000);
         }
 
         function winGame() {
