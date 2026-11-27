@@ -1,0 +1,29 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/interactable.gd" id="1"]
+[ext_resource type="PackedScene" path="res://assets/models/battery.glb" id="2"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bat"]
+size = Vector3(0.24, 0.3, 0.24)
+
+[node name="BatteryPickup" type="StaticBody3D"]
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("1")
+kind = 3
+
+[node name="Col" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_bat")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="ModelScale" type="Node3D" parent="Visual"]
+transform = Transform3D(4.5, 0, 0, 0, 4.5, 0, 0, 0, 4.5, 0, 0, 0)
+
+[node name="BatteryModel" parent="Visual/ModelScale" instance=ExtResource("2")]
+
+[node name="PickupGlint" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
+light_color = Color(1, 0.88, 0.32, 1)
+light_energy = 0.42
+omni_range = 1.8

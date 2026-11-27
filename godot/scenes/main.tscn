@@ -1,0 +1,123 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui_stack.gd" id="2"]
+[ext_resource type="AudioStream" path="res://assets/audio/codWaw.mp3" id="3"]
+[ext_resource type="AudioStream" path="res://assets/audio/ambiance.mp3" id="4"]
+[ext_resource type="Texture2D" path="res://assets/img/wowok_menu.jpg" id="5"]
+
+[sub_resource type="Shader" id="Shader_fx"]
+code = "shader_type canvas_item;
+uniform float intensity = 0.0;
+float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void fragment(){
+	float d = distance(UV, vec2(0.5));
+	float vig = smoothstep(0.35, 0.95, d);
+	float g = h(UV * vec2(1920.0, 1080.0) + vec2(TIME * 37.1, TIME * 91.7));
+	float a = vig * (0.52 + 0.38 * intensity) + (g - 0.5) * 0.065;
+	vec3 col = mix(vec3(0.0), vec3(0.35, 0.0, 0.0), intensity * vig);
+	COLOR = vec4(col, clamp(a, 0.0, 1.0));
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fx"]
+shader = SubResource("Shader_fx")
+shader_parameter/intensity = 0.0
+
+[node name="Main" type="Node"]
+process_mode = 3
+script = ExtResource("1")
+
+[node name="EditorMenuPreview" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="PreviewBG" type="TextureRect" parent="EditorMenuPreview"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("5")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="PreviewDim" type="ColorRect" parent="EditorMenuPreview"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.58)
+
+[node name="PreviewTitle" type="Label" parent="EditorMenuPreview"]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 96.0
+offset_top = -180.0
+offset_right = 920.0
+offset_bottom = 40.0
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.9, 0.12, 0.12, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 10
+theme_override_font_sizes/font_size = 78
+text = "FIVE NIGHTS
+AT WOWOK"
+
+[node name="PreviewHint" type="Label" parent="EditorMenuPreview"]
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 96.0
+offset_top = 48.0
+offset_right = 960.0
+offset_bottom = 120.0
+grow_vertical = 2
+theme_override_font_sizes/font_size = 24
+text = "[Pratinjau Editor — Tekan F5 untuk bermain, atau buka scenes/world.tscn untuk edit 3D]"
+
+[node name="FXLayer" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+layer = 5
+
+[node name="VignetteFX" type="ColorRect" parent="FXLayer"]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_fx")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="UI" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+layer = 30
+process_mode = 3
+script = ExtResource("2")
+
+[node name="MenuMusic" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("3")
+volume_db = -5.0
+bus = &"Music"
+
+[node name="AmbienceMusic" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+stream = ExtResource("4")
+volume_db = -7.0
+bus = &"Ambience"

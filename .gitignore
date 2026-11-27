@@ -16,6 +16,12 @@ desktop.ini
 # Dependencies and build output
 node_modules/
 dist/
+build/
+
+# Godot 4+ cache, imports, credentials, and generated test captures
+godot/.godot/
+godot/tests/shots/
+*.import.tmp
 
 # Logs and temp files
 *.log
