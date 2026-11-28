@@ -90,12 +90,112 @@ theme_override_constants/margin_bottom = 32
 layout_mode = 2
 mouse_filter = 2
 
+[node name="ViewfinderFrame" type="Control" parent="Root/SafeMargin/Grid"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -18.0
+offset_top = -12.0
+offset_right = 18.0
+offset_bottom = 12.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="CornerTL_H" type="ColorRect" parent="Root/SafeMargin/Grid/ViewfinderFrame"]
+layout_mode = 1
+offset_right = 34.0
+offset_bottom = 2.0
+mouse_filter = 2
+color = Color(0.92, 0.94, 0.9, 0.36)
+
+[node name="CornerTL_V" type="ColorRect" parent="Root/SafeMargin/Grid/ViewfinderFrame"]
+layout_mode = 1
+offset_right = 2.0
+offset_bottom = 34.0
+mouse_filter = 2
+color = Color(0.92, 0.94, 0.9, 0.36)
+
+[node name="CornerTR_H" type="ColorRect" parent="Root/SafeMargin/Grid/ViewfinderFrame"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -34.0
+offset_bottom = 2.0
+grow_horizontal = 0
+mouse_filter = 2
+color = Color(0.92, 0.94, 0.9, 0.36)
+
+[node name="CornerTR_V" type="ColorRect" parent="Root/SafeMargin/Grid/ViewfinderFrame"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -2.0
+offset_bottom = 34.0
+grow_horizontal = 0
+mouse_filter = 2
+color = Color(0.92, 0.94, 0.9, 0.36)
+
+[node name="CornerBL_H" type="ColorRect" parent="Root/SafeMargin/Grid/ViewfinderFrame"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -2.0
+offset_right = 34.0
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.92, 0.94, 0.9, 0.36)
+
+[node name="CornerBL_V" type="ColorRect" parent="Root/SafeMargin/Grid/ViewfinderFrame"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -34.0
+offset_right = 2.0
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.92, 0.94, 0.9, 0.36)
+
+[node name="CornerBR_H" type="ColorRect" parent="Root/SafeMargin/Grid/ViewfinderFrame"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -34.0
+offset_top = -2.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.92, 0.94, 0.9, 0.36)
+
+[node name="CornerBR_V" type="ColorRect" parent="Root/SafeMargin/Grid/ViewfinderFrame"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -2.0
+offset_top = -34.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.92, 0.94, 0.9, 0.36)
+
 [node name="TopRight" type="VBoxContainer" parent="Root/SafeMargin/Grid"]
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -460.0
+offset_left = -540.0
 offset_bottom = 136.0
 grow_horizontal = 0
 mouse_filter = 2
@@ -124,8 +224,8 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.75, 0.82, 0.78, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 20
-text = "[C] Tablet CCTV   [F] Senter   [Ctrl] Jongkok"
+theme_override_font_sizes/font_size = 18
+text = "[C] CCTV   [F] Senter   [Klik Kanan] Zoom   [Ctrl] Jongkok"
 horizontal_alignment = 2
 
 [node name="TopLeft" type="VBoxContainer" parent="Root/SafeMargin/Grid"]
@@ -152,7 +252,7 @@ theme_override_colors/font_color = Color(0.62, 0.88, 0.72, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 8
 theme_override_font_sizes/font_size = 22
-text = "⚡ Generator R3: Siap"
+text = "⚡ Generator Barat Laut: Siap"
 
 [node name="HiddenLabel" type="Label" parent="Root/SafeMargin/Grid/TopLeft"]
 unique_name_in_owner = true
@@ -270,7 +370,7 @@ layout_mode = 2
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 8
 theme_override_font_sizes/font_size = 22
-text = "Pintu tertutup: 0 / 6"
+text = "Pintu tertutup: 0 / 8"
 
 [node name="BatteryLabel" type="Label" parent="Root/SafeMargin/Grid/BottomLeft"]
 unique_name_in_owner = true
@@ -324,19 +424,146 @@ theme_override_constants/outline_size = 8
 theme_override_font_sizes/font_size = 30
 horizontal_alignment = 1
 
-[node name="Crosshair" type="ColorRect" parent="Root"]
-custom_minimum_size = Vector2(6, 6)
+[node name="CamTopCenter" type="VBoxContainer" parent="Root/SafeMargin/Grid"]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -180.0
+offset_right = 180.0
+offset_bottom = 64.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="CamTopBadge" type="HBoxContainer" parent="Root/SafeMargin/Grid/CamTopCenter"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="CamRecDot" type="Label" parent="Root/SafeMargin/Grid/CamTopCenter/CamTopBadge"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.2, 0.18, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 20
+text = "● REC"
+
+[node name="CamTapeMode" type="Label" parent="Root/SafeMargin/Grid/CamTopCenter/CamTopBadge"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.93, 0.88, 0.78)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 19
+text = "[SP] HI8"
+
+[node name="CamZoomLabel" type="Label" parent="Root/SafeMargin/Grid/CamTopCenter"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.88, 0.95, 0.86, 0.92)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 18
+text = "W ━━●━━━━━ T  1.0x"
+horizontal_alignment = 1
+
+[node name="CamBottomRight" type="VBoxContainer" parent="Root/SafeMargin/Grid"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -310.0
+offset_top = -62.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 1
+
+[node name="CamTimecodeLabel" type="Label" parent="Root/SafeMargin/Grid/CamBottomRight"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.92, 0.92, 0.84, 0.76)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 18
+text = "PLAY ►  TC 00:00:00:00"
+horizontal_alignment = 2
+
+[node name="CamDateStampLabel" type="Label" parent="Root/SafeMargin/Grid/CamBottomRight"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.7, 0.22, 0.84)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.9)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 21
+text = "NOV. 28 1998  12:00 AM"
+horizontal_alignment = 2
+
+[node name="FocusBracketL" type="Label" parent="Root"]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -3.0
-offset_top = -3.0
-offset_right = 3.0
-offset_bottom = 3.0
+offset_left = -46.0
+offset_top = -14.0
+offset_right = -26.0
+offset_bottom = 14.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(1, 1, 1, 0.65)
+theme_override_colors/font_color = Color(0.92, 0.95, 0.9, 0.26)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.7)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+text = "["
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="FocusBracketR" type="Label" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 26.0
+offset_top = -14.0
+offset_right = 46.0
+offset_bottom = 14.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.92, 0.95, 0.9, 0.26)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.7)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+text = "]"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Crosshair" type="ColorRect" parent="Root"]
+custom_minimum_size = Vector2(4, 4)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -2.0
+offset_top = -2.0
+offset_right = 2.0
+offset_bottom = 2.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.58)

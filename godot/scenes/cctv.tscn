@@ -1,6 +1,7 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/cctv.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/paripurna_minimap.gd" id="2"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_mul"]
 blend_mode = 3
@@ -24,11 +25,11 @@ shader = SubResource("Shader_cctv")
 shader_parameter/burst = 0.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_map_panel"]
-content_margin_left = 14.0
-content_margin_top = 14.0
-content_margin_right = 14.0
-content_margin_bottom = 14.0
-bg_color = Color(0.02, 0.08, 0.04, 0.88)
+content_margin_left = 10.0
+content_margin_top = 10.0
+content_margin_right = 10.0
+content_margin_bottom = 10.0
+bg_color = Color(0.015, 0.065, 0.03, 0.9)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
@@ -36,19 +37,27 @@ border_width_bottom = 2
 border_color = Color(0.35, 0.95, 0.55, 0.85)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cam_norm"]
-bg_color = Color(0.02, 0.14, 0.05, 0.88)
+content_margin_left = 4.0
+content_margin_top = 2.0
+content_margin_right = 4.0
+content_margin_bottom = 2.0
+bg_color = Color(0.02, 0.16, 0.06, 0.9)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.3, 0.95, 0.5, 1)
+border_color = Color(0.32, 0.95, 0.52, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cam_focus"]
-bg_color = Color(0.14, 0.42, 0.16, 0.96)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
+content_margin_left = 4.0
+content_margin_top = 2.0
+content_margin_right = 4.0
+content_margin_bottom = 2.0
+bg_color = Color(0.16, 0.46, 0.18, 0.96)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
 border_color = Color(1, 0.9, 0.22, 1)
 
 [node name="CCTV" type="CanvasLayer"]
@@ -87,12 +96,13 @@ stretch = true
 [node name="SubViewport" type="SubViewport" parent="Root/FeedContainer"]
 unique_name_in_owner = true
 handle_input_locally = false
-size = Vector2i(960, 540)
-render_target_update_mode = 4
+size = Vector2i(800, 450)
+render_target_update_mode = 0
 
 [node name="CCTVCam" type="Camera3D" parent="Root/FeedContainer/SubViewport"]
 unique_name_in_owner = true
-fov = 82.0
+fov = 84.0
+far = 140.0
 
 [node name="NightVisionTint" type="ColorRect" parent="Root"]
 material = SubResource("CanvasItemMaterial_mul")
@@ -144,8 +154,8 @@ size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.8, 1, 0.85, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 36
-text = "● REC  CAM 1 / R1 KANTOR"
+theme_override_font_sizes/font_size = 34
+text = "● REC  CAM 1 / SIDANG PARIPURNA"
 
 [node name="AlertLabel" type="Label" parent="Root/Margin/VBox/TopHeader"]
 unique_name_in_owner = true
@@ -199,194 +209,138 @@ layout_mode = 2
 theme_override_colors/font_color = Color(0.65, 1, 0.72, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 22
-text = "⚡ Generator R3 Server: Normal"
+theme_override_font_sizes/font_size = 21
+text = "⚡ Generator Barat Laut: Normal  |  ● Biru = Pos Sekuriti"
 
 [node name="HelpLabel" type="Label" parent="Root/Margin/VBox/BottomRow/InfoCol"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 1, 0.85, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 21
+theme_override_font_sizes/font_size = 20
 text = "[Q/R atau LB/RB] Ganti Kamera   [C / Esc / B] Tutup Tablet
-(Waspada: memantau menguras daya & membuatmu diam di tempat!)"
+Garis Hijau/Merah di denah = Status 8 Pintu Sekuriti"
 
 [node name="MapPanel" type="PanelContainer" parent="Root/Margin/VBox/BottomRow"]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_map_panel")
 
-[node name="MapVBox" type="VBoxContainer" parent="Root/Margin/VBox/BottomRow/MapPanel"]
+[node name="ParipurnaMapCanvas" type="Control" parent="Root/Margin/VBox/BottomRow/MapPanel"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(500, 360)
 layout_mode = 2
-theme_override_constants/separation = 6
+script = ExtResource("2")
 
-[node name="MapTitle" type="Label" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 1, 0.85, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 17
-text = "DENAH GEDUNG  •  PINTU: HIJAU=BUKA / MERAH=TUTUP"
-horizontal_alignment = 1
+[node name="MapTitle" type="Label" parent="Root/Margin/VBox/BottomRow/MapPanel/ParipurnaMapCanvas"]
+layout_mode = 0
+offset_left = 8.0
+offset_top = 2.0
+offset_right = 210.0
+offset_bottom = 24.0
+theme_override_colors/font_color = Color(0.55, 0.98, 0.68, 0.9)
+theme_override_font_sizes/font_size = 14
+text = "DENAH GEDUNG PARIPURNA"
 
-[node name="NorthRow" type="HBoxContainer" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="CamBtn0" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/NorthRow"]
-custom_minimum_size = Vector2(132, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
+[node name="CamBtn0" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/ParipurnaMapCanvas"]
+layout_mode = 0
+offset_left = 204.0
+offset_top = 166.0
+offset_right = 296.0
+offset_bottom = 198.0
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_cam_focus")
 theme_override_styles/hover = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/focus = SubResource("StyleBoxFlat_cam_focus")
-text = "1 • R1"
+text = "1•SIDANG"
 
-[node name="CamBtn1" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/NorthRow"]
-custom_minimum_size = Vector2(132, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
+[node name="CamBtn1" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/ParipurnaMapCanvas"]
+layout_mode = 0
+offset_left = 202.0
+offset_top = 42.0
+offset_right = 298.0
+offset_bottom = 74.0
+theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_cam_focus")
 theme_override_styles/hover = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/focus = SubResource("StyleBoxFlat_cam_focus")
-text = "2 • R2"
+text = "2•PIMPINAN"
 
-[node name="CamBtn2" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/NorthRow"]
-custom_minimum_size = Vector2(132, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
+[node name="CamBtn2" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/ParipurnaMapCanvas"]
+layout_mode = 0
+offset_left = 206.0
+offset_top = 286.0
+offset_right = 294.0
+offset_bottom = 318.0
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_cam_focus")
 theme_override_styles/hover = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/focus = SubResource("StyleBoxFlat_cam_focus")
-text = "3 • R3"
+text = "3•LOBI"
 
-[node name="NorthDoors" type="HBoxContainer" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox"]
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="Hold0" type="CenterContainer" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/NorthDoors"]
-custom_minimum_size = Vector2(132, 10)
-layout_mode = 2
-mouse_filter = 2
-
-[node name="DoorBadge0" type="ColorRect" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/NorthDoors/Hold0"]
-custom_minimum_size = Vector2(56, 8)
-layout_mode = 2
-mouse_filter = 2
-color = Color(0.25, 0.95, 0.45, 1)
-
-[node name="Hold1" type="CenterContainer" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/NorthDoors"]
-custom_minimum_size = Vector2(132, 10)
-layout_mode = 2
-mouse_filter = 2
-
-[node name="DoorBadge1" type="ColorRect" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/NorthDoors/Hold1"]
-custom_minimum_size = Vector2(56, 8)
-layout_mode = 2
-mouse_filter = 2
-color = Color(0.25, 0.95, 0.45, 1)
-
-[node name="Hold2" type="CenterContainer" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/NorthDoors"]
-custom_minimum_size = Vector2(132, 10)
-layout_mode = 2
-mouse_filter = 2
-
-[node name="DoorBadge2" type="ColorRect" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/NorthDoors/Hold2"]
-custom_minimum_size = Vector2(56, 8)
-layout_mode = 2
-mouse_filter = 2
-color = Color(0.25, 0.95, 0.45, 1)
-
-[node name="HallRow" type="HBoxContainer" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox"]
-layout_mode = 2
-alignment = 1
-
-[node name="CamBtn3" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/HallRow"]
-custom_minimum_size = Vector2(412, 46)
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
+[node name="CamBtn3" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/ParipurnaMapCanvas"]
+layout_mode = 0
+offset_left = 144.0
+offset_top = 104.0
+offset_right = 232.0
+offset_bottom = 134.0
+theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_cam_focus")
 theme_override_styles/hover = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/focus = SubResource("StyleBoxFlat_cam_focus")
-text = "4 • LOR"
+text = "4•CINCIN"
 
-[node name="SouthDoors" type="HBoxContainer" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox"]
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="Hold3" type="CenterContainer" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/SouthDoors"]
-custom_minimum_size = Vector2(132, 10)
-layout_mode = 2
-mouse_filter = 2
-
-[node name="DoorBadge3" type="ColorRect" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/SouthDoors/Hold3"]
-custom_minimum_size = Vector2(56, 8)
-layout_mode = 2
-mouse_filter = 2
-color = Color(0.25, 0.95, 0.45, 1)
-
-[node name="Hold4" type="CenterContainer" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/SouthDoors"]
-custom_minimum_size = Vector2(132, 10)
-layout_mode = 2
-mouse_filter = 2
-
-[node name="DoorBadge4" type="ColorRect" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/SouthDoors/Hold4"]
-custom_minimum_size = Vector2(56, 8)
-layout_mode = 2
-mouse_filter = 2
-color = Color(0.25, 0.95, 0.45, 1)
-
-[node name="Hold5" type="CenterContainer" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/SouthDoors"]
-custom_minimum_size = Vector2(132, 10)
-layout_mode = 2
-mouse_filter = 2
-
-[node name="DoorBadge5" type="ColorRect" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/SouthDoors/Hold5"]
-custom_minimum_size = Vector2(56, 8)
-layout_mode = 2
-mouse_filter = 2
-color = Color(0.25, 0.95, 0.45, 1)
-
-[node name="SouthRow" type="HBoxContainer" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox"]
-layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="CamBtn4" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/SouthRow"]
-custom_minimum_size = Vector2(132, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
+[node name="CamBtn4" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/ParipurnaMapCanvas"]
+layout_mode = 0
+offset_left = 48.0
+offset_top = 64.0
+offset_right = 138.0
+offset_bottom = 96.0
+theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_cam_focus")
 theme_override_styles/hover = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/focus = SubResource("StyleBoxFlat_cam_focus")
-text = "5 • R4"
+text = "5•SERVER"
 
-[node name="CamBtn5" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/SouthRow"]
-custom_minimum_size = Vector2(132, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
+[node name="CamBtn5" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/ParipurnaMapCanvas"]
+layout_mode = 0
+offset_left = 48.0
+offset_top = 184.0
+offset_right = 138.0
+offset_bottom = 216.0
+theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_cam_focus")
 theme_override_styles/hover = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/focus = SubResource("StyleBoxFlat_cam_focus")
-text = "6 • R5"
+text = "6•BARAT"
 
-[node name="CamBtn6" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/MapVBox/SouthRow"]
-custom_minimum_size = Vector2(132, 50)
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
+[node name="CamBtn6" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/ParipurnaMapCanvas"]
+layout_mode = 0
+offset_left = 362.0
+offset_top = 64.0
+offset_right = 452.0
+offset_bottom = 96.0
+theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_cam_focus")
 theme_override_styles/hover = SubResource("StyleBoxFlat_cam_norm")
 theme_override_styles/focus = SubResource("StyleBoxFlat_cam_focus")
-text = "7 • R6"
+text = "7•LOUNGE"
+
+[node name="CamBtn7" type="Button" parent="Root/Margin/VBox/BottomRow/MapPanel/ParipurnaMapCanvas"]
+layout_mode = 0
+offset_left = 362.0
+offset_top = 184.0
+offset_right = 452.0
+offset_bottom = 216.0
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_cam_norm")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_cam_focus")
+theme_override_styles/hover = SubResource("StyleBoxFlat_cam_norm")
+theme_override_styles/focus = SubResource("StyleBoxFlat_cam_focus")
+text = "8•TIMUR"

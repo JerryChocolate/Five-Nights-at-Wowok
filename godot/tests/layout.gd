@@ -63,6 +63,17 @@ func _check_at_size(size: Vector2i) -> void:
 	await get_tree().process_frame
 	_verify_screen(vp, menu, "MainMenuAfterPop@%s" % size, size)
 
+	var cctv_inst := (load("res://scenes/cctv.tscn") as PackedScene).instantiate() as CCTV
+	vp.add_child(cctv_inst)
+	cctv_inst.visible = true
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var cctv_root := cctv_inst.get_node("Root") as Control
+	if cctv_inst.buttons.size() > 0 and cctv_inst.buttons[0]:
+		cctv_inst.buttons[0].grab_focus()
+	_verify_screen(vp, cctv_root, "CCTVTablet@%s" % size, size)
+	cctv_inst.queue_free()
+
 	vp.queue_free()
 	await get_tree().process_frame
 

@@ -1,6 +1,7 @@
 extends CanvasLayer
 class_name HUD
-## HUD tampil penuh di 2D Editor (`hud.tscn`) dan digerakkan sinyal saat bermain (tanpa polling).
+## HUD tampil penuh di 2D Editor (`hud.tscn`) dan digerakkan sinyal saat bermain:
+## Dilengkapi bingkai tipis Viewfinder Camcorder Hi8, indikator Zoom Optik + AF, & Timecode.
 
 @onready var bars: Control = %LockerPeekBars
 @onready var safe_margin: MarginContainer = %SafeMargin
@@ -22,12 +23,22 @@ class_name HUD
 @onready var battery_bar: ProgressBar = %BatteryBar
 @onready var toast_label: Label = %ToastLabel
 @onready var prompt_label: Label = %PromptLabel
+@onready var cam_rec_dot: Label = %CamRecDot
+@onready var cam_tape_mode: Label = %CamTapeMode
+@onready var cam_zoom_label: Label = %CamZoomLabel
+@onready var cam_timecode_label: Label = %CamTimecodeLabel
+@onready var cam_datestamp_label: Label = %CamDateStampLabel
+@onready var focus_bracket_l: Label = %FocusBracketL
+@onready var focus_bracket_r: Label = %FocusBracketR
 
 var player: Player
 var usage_boxes: Array[ColorRect] = []
 var _toast_tween: Tween
 var _power_fill: StyleBoxFlat
 var _breath_fill: StyleBoxFlat
+var _cam_sec := 0.0
+var _blink_t := 0.0
+var _zoom_fade := 0.0
 
 
 func bind(p: Player) -> void:
@@ -66,6 +77,7 @@ func _ready() -> void:
 	Game.hidden_changed.connect(_on_hidden)
 	Game.ammo_changed.connect(_on_ammo)
 	Game.door_count_changed.connect(_on_doors)
+	Game.cam_lens_updated.connect(_on_cam_lens)
 	Game.toast.connect(show_toast)
 
 	_on_night(Game.night)
@@ -79,6 +91,7 @@ func _ready() -> void:
 	_on_hidden(Game.is_hidden)
 	_on_ammo(Game.ammo)
 	_on_doors(Game.closed_doors)
+	_on_cam_lens(0.0, 0.0)
 
 
 func _on_night(n: int) -> void:
@@ -90,7 +103,55 @@ func _on_night(n: int) -> void:
 		night_label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.92))
 
 func _on_hour(h: int) -> void:
-	time_label.text = "12 AM" if h == 0 else "%d AM" % h
+	var h_txt := "12 AM" if h == 0 else "%d AM" % h
+	time_label.text = h_txt
+	if cam_datestamp_label:
+		var day_num := clampi(27 + Game.night, 28, 30)
+		var hh := 12 if h == 0 else h
+		cam_datestamp_label.text = "NOV. %d 1998  %02d:00 AM" % [day_num, hh]
+
+
+func _on_cam_lens(zoom_amount: float, focus_blur: float) -> void:
+	if cam_zoom_label:
+		var mult := lerpf(1.0, 1.8, zoom_amount)
+		var slots := 7
+		var knob := clampi(int(roundf(zoom_amount * float(slots - 1))), 0, slots - 1)
+		var bar := ""
+		for i in slots:
+			bar += "●" if i == knob else "━"
+		var af_tag := "  AF.." if focus_blur > 0.16 else "  AF"
+		cam_zoom_label.text = "W %s T  %.1fx%s" % [bar, mult, af_tag]
+		if zoom_amount > 0.02:
+			_zoom_fade = 1.35
+			cam_zoom_label.modulate.a = 0.95
+	if focus_bracket_l and focus_bracket_r:
+		var span := lerpf(36.0, 20.0, zoom_amount) + focus_blur * 7.0
+		var alpha := lerpf(0.22, 0.58, zoom_amount)
+		focus_bracket_l.offset_left = -span - 10.0
+		focus_bracket_l.offset_right = -span + 10.0
+		focus_bracket_r.offset_left = span - 10.0
+		focus_bracket_r.offset_right = span + 10.0
+		focus_bracket_l.modulate.a = alpha
+		focus_bracket_r.modulate.a = alpha
+
+
+func _process(delta: float) -> void:
+	_cam_sec += delta
+	_blink_t += delta
+	if _zoom_fade > 0.0 and cam_zoom_label:
+		if not (player and player.zoom_amount > 0.02):
+			_zoom_fade = maxf(0.0, _zoom_fade - delta)
+			cam_zoom_label.modulate.a = clampf(_zoom_fade * 1.4, 0.0, 0.95)
+	if cam_rec_dot:
+		var period := 0.28 if Game.threat >= 2 else 0.78
+		cam_rec_dot.modulate.a = 0.92 if fmod(_blink_t, period * 2.0) < period else 0.16
+	if cam_timecode_label:
+		var total_s := int(_cam_sec)
+		var mm := (total_s / 60) % 60
+		var ss := total_s % 60
+		var ff := int(fmod(_cam_sec, 1.0) * 25.0)
+		var prefix := "ERR ▌▌" if Game.threat >= 2 else "REC ►"
+		cam_timecode_label.text = "%s  TC 00:%02d:%02d:%02d" % [prefix, mm, ss, ff]
 
 func _on_power(v: float) -> void:
 	power_label.text = "DAYA %d%%" % int(ceilf(v))
@@ -128,32 +189,41 @@ func _on_breath(v: float) -> void:
 
 func _on_gen(cd: float, sab: bool) -> void:
 	if Game.power_is_out:
-		gen_label.text = "⚡ LISTRIK PADAM — Nyalakan Generator R3!"
+		gen_label.text = "⚡ LISTRIK PADAM — Nyalakan Generator Barat Laut!"
 		gen_label.add_theme_color_override("font_color", Color(1.0, 0.28, 0.25))
 	elif sab:
-		gen_label.text = "⚠ SEKRING R3 DISABOTASE — Daya Bocor!"
+		gen_label.text = "⚠ SEKRING BARAT LAUT DISABOTASE — Daya Bocor!"
 		gen_label.add_theme_color_override("font_color", Color(1.0, 0.45, 0.2))
 	elif cd > 0.0:
-		gen_label.text = "⚡ Generator R3: Dingin (%ds)" % int(ceilf(cd))
+		gen_label.text = "⚡ Generator Barat Laut: Dingin (%ds)" % int(ceilf(cd))
 		gen_label.add_theme_color_override("font_color", Color(0.9, 0.78, 0.35))
 	else:
-		gen_label.text = "⚡ Generator R3: Siap"
+		gen_label.text = "⚡ Generator Barat Laut: Siap"
 		gen_label.add_theme_color_override("font_color", Color(0.62, 0.88, 0.72))
 
 func _on_doors(n: int) -> void:
-	doors_label.text = "Pintu tertutup: %d / 6" % n
+	doors_label.text = "Pintu tertutup: %d / 8" % n
 
 func _on_threat(level: int) -> void:
 	match level:
 		0:
 			threat_label.text = "● AMAN"
 			threat_label.add_theme_color_override("font_color", Color(0.6, 0.9, 0.6))
+			if cam_tape_mode:
+				cam_tape_mode.text = "[SP] HI8"
+				cam_tape_mode.add_theme_color_override("font_color", Color(0.92, 0.93, 0.88, 0.78))
 		1:
 			threat_label.text = "▲ WASPADA"
 			threat_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+			if cam_tape_mode:
+				cam_tape_mode.text = "[SP] TRACKING"
+				cam_tape_mode.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35, 0.92))
 		_:
 			threat_label.text = "■ DIKEJAR!"
 			threat_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
+			if cam_tape_mode:
+				cam_tape_mode.text = "[LP] SYNC ERR!"
+				cam_tape_mode.add_theme_color_override("font_color", Color(1.0, 0.32, 0.28, 1.0))
 
 func _on_hidden(h: bool) -> void:
 	hidden_label.text = "◐ BERSEMBUNYI DI LOKER" if h else ""

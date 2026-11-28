@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name CCTV
-## Tablet Monitor CCTV: tampil penuh di 2D Editor (`cctv.tscn`) dan tersembunyi otomatis saat awal malam.
+## Tablet Monitor CCTV Gedung Sidang Paripurna: 8 titik pantau + Mini-Map Blueprint Vektor interaktif.
 
 @onready var sv: SubViewport = %SubViewport
 @onready var cam: Camera3D = %CCTVCam
@@ -10,12 +10,14 @@ class_name CCTV
 @onready var clock_label: Label = %ClockLabel
 @onready var power_label: Label = %PowerLabel
 @onready var gen_map_label: Label = %GenMapLabel
-@onready var map_vbox: VBoxContainer = %MapVBox
+@onready var minimap: ParipurnaMinimap = %ParipurnaMapCanvas
+
+const CAM_COUNT := 8
+const DOOR_COUNT := 8
 
 var world: World
 var idx := 0
 var buttons: Array[Button] = []
-var door_badges: Array[ColorRect] = []
 var static_sfx: AudioStreamPlayer
 var _burst_tween: Tween
 var _scan_t := 0.0
@@ -33,20 +35,16 @@ func bind(w: World) -> void:
 func _ready() -> void:
 	layer = 20
 	visible = Game.camera_open
+	if sv:
+		sv.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE if visible else SubViewport.UPDATE_DISABLED
 
-	buttons.resize(7)
-	for i in 7:
-		var b := map_vbox.find_child("CamBtn%d" % i, true, false) as Button
+	buttons.resize(CAM_COUNT)
+	for i in CAM_COUNT:
+		var b := minimap.find_child("CamBtn%d" % i, true, false) as Button
 		if b:
 			b.focus_entered.connect(_select.bind(i))
 			b.pressed.connect(_select.bind(i))
 			buttons[i] = b
-
-	door_badges.resize(6)
-	for did in 6:
-		var db := map_vbox.find_child("DoorBadge%d" % did, true, false) as ColorRect
-		if db:
-			door_badges[did] = db
 
 	static_sfx = AudioStreamPlayer.new()
 	static_sfx.bus = &"SFX"
@@ -69,7 +67,7 @@ func _ready() -> void:
 	clock_label.text = "12 AM"
 	power_label.text = "DAYA GEDUNG: %d%%" % int(ceilf(Game.power))
 	_refresh_gen_status()
-	for did in 6:
+	for did in DOOR_COUNT:
 		_on_door_state(did, Game.door_states.get(did, false))
 	_select(idx, false)
 
@@ -79,28 +77,33 @@ func _refresh_button_labels() -> void:
 		return
 	for i in mini(buttons.size(), world.cams.size()):
 		if buttons[i]:
-			buttons[i].text = "%d • %s" % [i + 1, String(world.cams[i].get("short", "CAM"))]
+			buttons[i].text = "%d•%s" % [i + 1, String(world.cams[i].get("short", "CAM"))]
+
 
 func _on_door_state(door_id: int, closed_val: bool) -> void:
-	if door_id >= 0 and door_id < door_badges.size() and door_badges[door_id] != null:
-		door_badges[door_id].color = Color(1.0, 0.22, 0.2) if closed_val else Color(0.25, 0.95, 0.45)
+	if minimap:
+		minimap.set_door_state(door_id, closed_val)
+
 
 func _refresh_gen_status() -> void:
 	if gen_map_label == null:
 		return
 	if Game.generator_sabotaged:
-		gen_map_label.text = "⚠ PERINGATAN: Sekring R3 Server Rusak!"
+		gen_map_label.text = "⚠ PERINGATAN: Sekring Ruang Server Barat Laut Rusak!"
 		gen_map_label.add_theme_color_override("font_color", Color(1.0, 0.35, 0.25))
 	elif Game.gen_cooldown > 0.0:
-		gen_map_label.text = "⚡ Generator R3: Cooldown %ds" % int(ceilf(Game.gen_cooldown))
+		gen_map_label.text = "⚡ Generator Barat Laut: Cooldown %ds" % int(ceilf(Game.gen_cooldown))
 		gen_map_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.35))
 	else:
-		gen_map_label.text = "⚡ Generator R3 Server: Normal"
+		gen_map_label.text = "⚡ Generator Barat Laut: Normal  |  ● Biru = Pos Sekuriti"
 		gen_map_label.add_theme_color_override("font_color", Color(0.65, 1.0, 0.72))
+
 
 func _on_toggle(open: bool) -> void:
 	visible = open
 	cam.current = open
+	if sv:
+		sv.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE if open else SubViewport.UPDATE_DISABLED
 	if open:
 		if sv and world and world.is_inside_tree():
 			sv.world_3d = world.get_world_3d()
@@ -111,9 +114,11 @@ func _on_toggle(open: bool) -> void:
 		if f:
 			f.release_focus()
 
+
 func _focus_active_btn() -> void:
 	if visible and idx >= 0 and idx < buttons.size() and buttons[idx]:
 		buttons[idx].grab_focus()
+
 
 func _select(i: int, burst: bool = true) -> void:
 	if world == null or i < 0 or i >= world.cams.size():
@@ -133,17 +138,25 @@ func _select(i: int, burst: bool = true) -> void:
 		_burst_tween = create_tween()
 		_burst_tween.tween_method(func(v: float) -> void: sm.set_shader_parameter("burst", v), 1.0, 0.0, 0.32)
 
+
 func _update_enemy_alert() -> void:
 	if alert_label == null or world == null or world.enemy == null or idx < 0 or idx >= world.cams.size():
 		return
 	var ep := world.enemy.global_position
+	var c: Dictionary = world.cams[idx]
 	var in_feed := false
-	if idx == 3:
-		in_feed = absf(ep.z) <= 2.3
+	if bool(c.get("is_ring", false)):
+		var r_radial := Vector2(ep.x, ep.z).length()
+		in_feed = maxf(absf(ep.x), absf(ep.z)) <= 16.8 and r_radial >= 11.0
+	elif idx == 0:
+		# Kamera 1: Ruang Sidang Paripurna bundar (R <= 11.6m)
+		in_feed = Vector2(ep.x, ep.z).length() <= 11.7
 	else:
-		var rc: Vector3 = world.cams[idx].get("room_center", Vector3.ZERO)
-		in_feed = absf(ep.x - rc.x) <= 5.2 and absf(ep.z - rc.z) <= 5.2
+		var rc: Vector3 = c.get("room_center", Vector3.ZERO)
+		var he: Vector2 = c.get("half_extents", Vector2(10.0, 10.0))
+		in_feed = absf(ep.x - rc.x) <= he.x and absf(ep.z - rc.z) <= he.y
 	alert_label.text = "⚠ ADA WOWOK!" if in_feed else ""
+
 
 func _process(delta: float) -> void:
 	if not visible:
@@ -152,6 +165,7 @@ func _process(delta: float) -> void:
 	if _scan_t <= 0.0:
 		_scan_t = 0.25
 		_update_enemy_alert()
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:

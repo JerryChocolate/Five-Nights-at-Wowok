@@ -13,6 +13,15 @@ const MENU_BG := "res://assets/img/wowok_menu.jpg"
 @export var infinite_power_debug: bool = false
 @export var god_mode_debug: bool = false
 
+@export_group("Custom Audio Cues (.mp3 / .wav)")
+@export var custom_ambience_music: AudioStream
+@export var custom_chase_stinger: AudioStream
+@export var custom_alert_cue: AudioStream
+@export var custom_chase_loop: AudioStream
+@export var custom_jumpscare_scream: AudioStream
+@export var custom_power_down: AudioStream
+@export var custom_power_up: AudioStream
+
 @onready var editor_preview: Control = %EditorMenuPreview
 @onready var ui: UIStack = %UI
 @onready var fx_layer: CanvasLayer = %FXLayer
@@ -26,7 +35,15 @@ var cctv: CCTV
 var fx_mat: ShaderMaterial
 var scare_layer: CanvasLayer
 var intro_layer: CanvasLayer
+var stinger_sfx: AudioStreamPlayer
+var alert_sfx: AudioStreamPlayer
+var power_sfx: AudioStreamPlayer
+var chase_pulse_music: AudioStreamPlayer
 var _fx_tween: Tween
+var _chase_music_tween: Tween
+var _stinger_cd := 0.0
+var _alert_cd := 0.0
+var _prev_threat := 0
 var _death_seq := 0
 
 
@@ -35,12 +52,39 @@ func _ready() -> void:
 		editor_preview.queue_free()
 
 	fx_mat = vignette_fx.material as ShaderMaterial
+	if custom_ambience_music != null:
+		music.stream = custom_ambience_music
 	var mms := menu_music.stream as AudioStreamMP3
 	if mms:
 		mms.loop = true
 	var ms := music.stream as AudioStreamMP3
 	if ms:
 		ms.loop = true
+
+	stinger_sfx = AudioStreamPlayer.new()
+	stinger_sfx.bus = &"SFX"
+	stinger_sfx.stream = custom_chase_stinger if custom_chase_stinger != null else Game.synth_scare_stinger()
+	stinger_sfx.volume_db = -3.0
+	add_child(stinger_sfx)
+
+	alert_sfx = AudioStreamPlayer.new()
+	alert_sfx.bus = &"SFX"
+	alert_sfx.stream = custom_alert_cue if custom_alert_cue != null else Game.synth_alert_cue()
+	alert_sfx.volume_db = -6.5
+	add_child(alert_sfx)
+
+	power_sfx = AudioStreamPlayer.new()
+	power_sfx.bus = &"SFX"
+	power_sfx.volume_db = -3.5
+	add_child(power_sfx)
+
+	chase_pulse_music = AudioStreamPlayer.new()
+	chase_pulse_music.bus = &"Music"
+	chase_pulse_music.stream = custom_chase_loop if custom_chase_loop != null else Game.synth_chase_pulse_loop()
+	if chase_pulse_music.stream is AudioStreamMP3:
+		(chase_pulse_music.stream as AudioStreamMP3).loop = true
+	chase_pulse_music.volume_db = -28.0
+	add_child(chase_pulse_music)
 
 	if unlock_all_nights_debug:
 		Game.unlocked_night = Game.MAX_NIGHT
@@ -52,21 +96,76 @@ func _ready() -> void:
 	Game.state_changed.connect(_on_state)
 	Game.power_out.connect(func() -> void:
 		if music.playing:
-			music.stop())
+			music.stop()
+		power_sfx.stream = custom_power_down if custom_power_down != null else Game.synth_power_transition(true)
+		power_sfx.play())
 	Game.power_restored.connect(func() -> void:
 		if Game.state == Game.S.PLAYING and not music.playing:
-			music.play())
-	Game.camera_toggled.connect(func(_o: bool) -> void: _update_mouse())
-	Game.threat_changed.connect(func(l: int) -> void:
-		if _fx_tween:
-			_fx_tween.kill()
-		_fx_tween = create_tween()
-		_fx_tween.tween_method(func(v: float) -> void: fx_mat.set_shader_parameter("intensity", v), float(fx_mat.get_shader_parameter("intensity")), l * 0.5, 0.5))
+			music.play()
+		power_sfx.stream = custom_power_up if custom_power_up != null else Game.synth_power_transition(false)
+		power_sfx.play())
+	Game.camera_toggled.connect(func(o: bool) -> void:
+		if fx_layer:
+			fx_layer.visible = (Game.state == Game.S.PLAYING) and not o
+		_update_mouse())
+	Game.threat_changed.connect(_on_threat_audio_and_fx)
+	Game.cam_lens_updated.connect(func(z: float, fb: float) -> void:
+		if fx_mat:
+			fx_mat.set_shader_parameter("zoom_amount", z)
+			fx_mat.set_shader_parameter("focus_blur", fb))
 
 	if skip_menu_to_night > 0:
 		start_night(skip_menu_to_night)
 	else:
 		show_main_menu()
+
+
+func _process(delta: float) -> void:
+	_stinger_cd = maxf(0.0, _stinger_cd - delta)
+	_alert_cd = maxf(0.0, _alert_cd - delta)
+
+
+func _on_threat_audio_and_fx(l: int) -> void:
+	if _fx_tween:
+		_fx_tween.kill()
+	_fx_tween = create_tween()
+	_fx_tween.tween_method(func(v: float) -> void: fx_mat.set_shader_parameter("intensity", v), float(fx_mat.get_shader_parameter("intensity")), l * 0.5, 0.5)
+
+	if Game.state == Game.S.PLAYING:
+		if l == 2 and _prev_threat < 2:
+			if _stinger_cd <= 0.0:
+				_stinger_cd = 7.0
+				stinger_sfx.pitch_scale = randf_range(0.95, 1.06)
+				stinger_sfx.play()
+			_fade_chase_pulse(true)
+		elif l == 1 and _prev_threat == 0:
+			if _alert_cd <= 0.0:
+				_alert_cd = 6.5
+				alert_sfx.pitch_scale = randf_range(0.94, 1.05)
+				alert_sfx.play()
+			_fade_chase_pulse(false)
+		elif l < 2:
+			_fade_chase_pulse(false)
+	_prev_threat = l
+
+
+func _fade_chase_pulse(active: bool) -> void:
+	if chase_pulse_music == null:
+		return
+	if _chase_music_tween:
+		_chase_music_tween.kill()
+	if active:
+		if not chase_pulse_music.playing:
+			chase_pulse_music.volume_db = -26.0
+			chase_pulse_music.play()
+		_chase_music_tween = create_tween()
+		_chase_music_tween.tween_property(chase_pulse_music, "volume_db", -5.5, 0.45)
+	elif chase_pulse_music.playing:
+		_chase_music_tween = create_tween()
+		_chase_music_tween.tween_property(chase_pulse_music, "volume_db", -30.0, 0.85)
+		_chase_music_tween.tween_callback(func() -> void:
+			if chase_pulse_music:
+				chase_pulse_music.stop())
 
 
 # ---------- Mouse ----------
@@ -120,6 +219,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # ---------- Malam ----------
 func _teardown_world() -> void:
+	_prev_threat = 0
+	if _chase_music_tween:
+		_chase_music_tween.kill()
+	if chase_pulse_music and chase_pulse_music.playing:
+		chase_pulse_music.stop()
 	for n in [world, hud, cctv, scare_layer, intro_layer]:
 		if is_instance_valid(n):
 			n.queue_free()
@@ -130,6 +234,8 @@ func _teardown_world() -> void:
 	intro_layer = null
 	if fx_mat:
 		fx_mat.set_shader_parameter("intensity", 0.0)
+		fx_mat.set_shader_parameter("zoom_amount", 0.0)
+		fx_mat.set_shader_parameter("focus_blur", 0.0)
 
 func start_night(n: int) -> void:
 	_death_seq += 1
@@ -188,11 +294,15 @@ func _night_intro(n: int) -> void:
 
 # ---------- Hasil ----------
 func _on_state(s: int) -> void:
+	if fx_layer:
+		fx_layer.visible = (s == Game.S.PLAYING) and not Game.camera_open
 	_update_mouse()
 	if s == Game.S.WON:
 		_show_win()
 
 func _show_win() -> void:
+	if chase_pulse_music and chase_pulse_music.playing:
+		chase_pulse_music.stop()
 	if music.playing:
 		music.stop()
 	if not menu_music.playing:
@@ -213,6 +323,8 @@ func _show_win() -> void:
 func _on_caught() -> void:
 	_death_seq += 1
 	var my := _death_seq
+	if chase_pulse_music and chase_pulse_music.playing:
+		chase_pulse_music.stop()
 	if music.playing:
 		music.stop()
 	if menu_music.playing:
@@ -228,7 +340,7 @@ func _on_caught() -> void:
 
 	var a := AudioStreamPlayer.new()
 	a.bus = &"Voice"
-	a.stream = load("res://assets/audio/antek-antek.mp3")
+	a.stream = custom_jumpscare_scream if custom_jumpscare_scream != null else load("res://assets/audio/antek-antek.mp3")
 	a.volume_db = 2.0
 	scare_layer.add_child(a)
 	a.play()

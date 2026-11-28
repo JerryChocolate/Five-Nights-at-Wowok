@@ -57,9 +57,9 @@ func run(main: Node) -> void:
 	var p: Player = w.player
 	var e: Enemy = w.enemy
 
-	print("== Verifikasi Anti-Eksploitasi Loker (Semua 6 Loker Dijangkau Patroli)")
+	print("== Verifikasi Anti-Eksploitasi Loker (Semua 8 Loker Dijangkau Patroli)")
 	var lockers := get_tree().get_nodes_in_group("lockers")
-	check(lockers.size() == 6, "6 loker ditemukan")
+	check(lockers.size() == 8, "8 loker ditemukan")
 	var all_reachable := true
 	for l in lockers:
 		var best_d := 1e9
@@ -70,11 +70,11 @@ func run(main: Node) -> void:
 				best_d = d_wp
 		if best_d > 2.5:
 			all_reachable = false
-	check(all_reachable, "semua 6 loker berjarak < 2.5m dari waypoint patroli")
+	check(all_reachable, "semua 8 loker berjarak < 2.5m dari waypoint patroli")
 
 	print("== Interaksi Pintu & Beban Daya")
 	var doors := get_tree().get_nodes_in_group("doors")
-	check(doors.size() == 6, "6 pintu")
+	check(doors.size() == 8, "8 pintu")
 	var d: Interactable = doors[0] as Interactable
 	d.set_closed(true)
 	check(game.closed_doors == 1 and game.usage == 2, "pintu tutup menambah hitungan & beban")
@@ -92,16 +92,19 @@ func run(main: Node) -> void:
 	check(not game.is_hidden and p.hiding_spot == null, "napas habis memaksa keluar loker")
 
 	var cctv_node: CCTV = main.cctv as CCTV
+	check(cctv_node.sv.render_target_update_mode == SubViewport.UPDATE_DISABLED, "SubViewport CCTV mati hemat GPU saat tablet tertutup")
 	game.toggle_camera()
 	await frames(3)
 	check(cctv_node.visible and game.camera_open, "tablet CCTV portabel tampil")
+	check(cctv_node.sv.render_target_update_mode == SubViewport.UPDATE_WHEN_VISIBLE, "SubViewport CCTV aktif hanya saat tampil")
 	check(focus_ok(), "CCTV punya fokus")
-	e.global_position = Vector3(-0.5, 0.0, 7.0)
-	cctv_node._select(5, false)
-	check(cctv_node.alert_label.text != "", "CCTV mendeteksi keberadaan Wowok di ruangan")
+	e.global_position = Vector3(0.0, 0.0, 2.5)
+	cctv_node._select(0, false)
+	check(cctv_node.alert_label.text != "", "CCTV mendeteksi keberadaan Wowok di Ruang Sidang Paripurna")
 	game.toggle_camera()
 	await frames(2)
 	check(not cctv_node.visible, "tablet CCTV tertutup kembali")
+	check(cctv_node.sv.render_target_update_mode == SubViewport.UPDATE_DISABLED, "SubViewport CCTV kembali nonaktif setelah ditutup")
 
 	print("== Pause")
 	main._show_pause()
@@ -156,7 +159,22 @@ func run(main: Node) -> void:
 	check(gens.size() == 1, "unit Generator R3 ditemukan")
 	(gens[0] as Interactable).interact(w6.player)
 	await frames(2)
-	check(not game.power_is_out and not game.generator_sabotaged and game.power >= 34.0, "Generator R3 memulihkan listrik & memperbaiki sabotase")
+	check(not game.power_is_out and not game.generator_sabotaged and game.power >= 34.0, "Generator memulihkan listrik & memperbaiki sabotase")
+
+	print("== Regresi Bug Pendingin Generator 1s -> 0s (Siap) & Preset Grafis")
+	game.gen_cooldown = 1.25
+	game._last_gen_q = 2.0
+	await get_tree().create_timer(1.45).timeout
+	await frames(2)
+	check(game.gen_cooldown == 0.0, "cooldown generator benar-benar mencapai 0.0")
+	check(main.hud.gen_label.text.find("Siap") != -1, "label HUD kembali 'Siap' (tidak macet di 1s): " + main.hud.gen_label.text)
+
+	var orig_gfx: int = int(game.graphics_preset)
+	for gp in [0, 2, 1]:
+		game.set_graphics_preset(gp)
+		await frames(2)
+	check(game.graphics_preset == 1, "siklus Preset Grafis Rendah/Tinggi/Seimbang berjalan mulus")
+	game.set_graphics_preset(orig_gfx)
 
 	# Kembalikan progres simpanan awal agar tes tidak mengotori save pengguna
 	game.unlocked_night = orig_unlocked
