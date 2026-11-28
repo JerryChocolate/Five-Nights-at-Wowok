@@ -1,10 +1,13 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/interactable.gd" id="1"]
 [ext_resource type="PackedScene" path="res://assets/models/security_door.glb" id="2"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_door"]
 size = Vector3(2.2, 2.6, 0.22)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_switch"]
+size = Vector3(0.28, 0.44, 0.16)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_stripe"]
 albedo_color = Color(0.85, 0.2, 0.16, 1)
@@ -15,14 +18,51 @@ emission_energy_multiplier = 0.9
 [sub_resource type="BoxMesh" id="BoxMesh_stripe"]
 size = Vector3(2.05, 0.12, 0.24)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_switch_box"]
+albedo_color = Color(0.14, 0.17, 0.2, 1)
+roughness = 0.45
+
+[sub_resource type="BoxMesh" id="BoxMesh_switch_box"]
+size = Vector3(0.18, 0.32, 0.08)
+
 [node name="SecurityDoor" type="StaticBody3D" groups=["doors"]]
-collision_layer = 3
+collision_layer = 2
 collision_mask = 0
 script = ExtResource("1")
 kind = 0
 
 [node name="Col" type="CollisionShape3D" parent="."]
 shape = SubResource("BoxShape3D_door")
+
+[node name="SwitchColFront" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.32, 0.05, 0.22)
+shape = SubResource("BoxShape3D_switch")
+
+[node name="SwitchColBack" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.32, 0.05, -0.22)
+shape = SubResource("BoxShape3D_switch")
+
+[node name="SwitchPanelFront" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.32, 0.05, 0.21)
+material_override = SubResource("StandardMaterial3D_switch_box")
+mesh = SubResource("BoxMesh_switch_box")
+
+[node name="SwitchLampFront" type="MeshInstance3D" parent="SwitchPanelFront"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, 0.045)
+material_override = SubResource("StandardMaterial3D_stripe")
+mesh = SubResource("BoxMesh_switch_box")
+scale = Vector3(0.55, 0.35, 0.25)
+
+[node name="SwitchPanelBack" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.32, 0.05, -0.21)
+material_override = SubResource("StandardMaterial3D_switch_box")
+mesh = SubResource("BoxMesh_switch_box")
+
+[node name="SwitchLampBack" type="MeshInstance3D" parent="SwitchPanelBack"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.06, -0.045)
+material_override = SubResource("StandardMaterial3D_stripe")
+mesh = SubResource("BoxMesh_switch_box")
+scale = Vector3(0.55, 0.35, 0.25)
 
 [node name="Visual" type="Node3D" parent="."]
 

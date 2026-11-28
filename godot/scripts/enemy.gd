@@ -1,7 +1,8 @@
 extends CharacterBody3D
 class_name Enemy
-## Prabowo (Wowok): memakai model 3D berjas beranimasi (`businessman.glb`: Idle, Walk, Run, Punch, Hit)
-## dipadukan wajah ikonik `prabowo.jpg` yang mengikuti tulang kepala (`Head` bone) secara real-time.
+## Prabowo (Wowok): AI horor dengan navigasi AStarGrid2D 0.5m bebas nyangkut meja/kursi,
+## steering kumis 3-arah (priority-truncated), memutar otomatis saat pintu sebelah ditutup,
+## serta variasi langkah AudioStreamRandomizer (/godot-audio) & slot MP3 kustom di Inspector.
 
 enum St { IDLE, PATROL, INVESTIGATE, CHASE, SEARCH, BLOCKED, STUNNED, SABOTAGE }
 
@@ -9,6 +10,10 @@ enum St { IDLE, PATROL, INVESTIGATE, CHASE, SEARCH, BLOCKED, STUNNED, SABOTAGE }
 @export var freeze_ai: bool = false
 @export var use_3d_head_instead_of_photo: bool = false
 @export var custom_body_model: PackedScene
+
+@export_group("Custom Audio Overrides (.mp3 / .wav)")
+@export var custom_footstep_stream: AudioStream
+@export var custom_voice_stream: AudioStream
 
 @onready var rig: Node3D = %Rig
 @onready var model_root: Node3D = %BusinessmanModel
@@ -23,6 +28,7 @@ var step_sfx: AudioStreamPlayer3D
 var _cur_anim: StringName = &""
 
 var st: int = St.IDLE
+var world: World
 var nav: AStar3D
 var patrol_ids: PackedInt32Array
 var generator_nav_id: int = -1
@@ -40,6 +46,7 @@ var inspect_t := 0.0
 var voice_cd := 0.0
 var sabotage_cd := 35.0
 var last_known := Vector3.ZERO
+var _last_chase_target := Vector3.INF
 var saw_hide := false
 var blocked_door: Interactable
 
@@ -48,14 +55,16 @@ var _last_step_half := 0
 var _stuck_pos := Vector3.ZERO
 var _stuck_t := 0.0
 var _stuck_strikes := 0
+var _smooth_vel := Vector3.ZERO
 
 
-func setup(p_nav: AStar3D, p_patrol: PackedInt32Array, p_gen_id: int, p_player: Player, p_night: int) -> void:
+func setup(p_nav: AStar3D, p_patrol: PackedInt32Array, p_gen_id: int, p_player: Player, p_night: int, p_world: World = null) -> void:
 	nav = p_nav
 	patrol_ids = p_patrol
 	generator_nav_id = p_gen_id
 	player = p_player
 	night = p_night
+	world = p_world if p_world != null else (get_parent() as World)
 	timer = 4.0 if night >= Game.SECRET_NIGHT else maxf(6.0, 28.0 - float(night) * 4.5)
 	sabotage_cd = 26.0 if night >= Game.SECRET_NIGHT else 52.0
 
@@ -75,12 +84,24 @@ func _ready() -> void:
 
 	_setup_character_rig()
 
+	if custom_voice_stream != null and voice != null:
+		voice.stream = custom_voice_stream
+
+	# Langkah kaki ber-variasi AudioStreamRandomizer (anti suara mesin tik repetitif!)
 	step_sfx = AudioStreamPlayer3D.new()
 	step_sfx.bus = &"SFX"
-	step_sfx.max_polyphony = 3
-	step_sfx.stream = Game.synth_tone(78.0, 32.0, 0.20, 2.4, 0.92, 0.25)
-	step_sfx.unit_size = 7.0
-	step_sfx.max_distance = 34.0
+	step_sfx.max_polyphony = 4
+	if custom_footstep_stream != null:
+		step_sfx.stream = custom_footstep_stream
+	else:
+		var rnd := AudioStreamRandomizer.new()
+		for v in 3:
+			rnd.add_stream(-1, Game.synth_marble_step(true, v))
+		rnd.random_pitch_semitones = 1.3
+		rnd.random_volume_offset_db = 1.6
+		step_sfx.stream = rnd
+	step_sfx.unit_size = 11.5
+	step_sfx.max_distance = 58.0
 	add_child(step_sfx)
 
 	Game.noise_made.connect(_on_noise)
@@ -166,7 +187,7 @@ func _can_see() -> bool:
 	var to := player.global_position - global_position
 	to.y = 0.0
 	var dist := to.length()
-	var max_d := 16.5 if Game.flashlight_on else (10.5 if night >= Game.SECRET_NIGHT else 8.5)
+	var max_d := 22.5 if Game.flashlight_on else (16.5 if night >= Game.SECRET_NIGHT else 13.5)
 	if player.crouching:
 		max_d *= 0.62
 	if dist > max_d:
@@ -192,36 +213,88 @@ func _on_player_hidden(h: bool) -> void:
 	saw_hide = h and (st == St.CHASE or _los(14.0))
 
 
-# ---------- Navigasi & Penjaga Anti-Nyangkut ----------
+# ---------- Navigasi Presisi AStarGrid2D + Whisker Steering ----------
 func _go_to(pos: Vector3) -> void:
-	if nav == null or nav.get_point_count() == 0:
-		return
-	var a := nav.get_closest_point(global_position)
-	var b := nav.get_closest_point(pos)
-	path = nav.get_point_path(a, b)
+	if world != null and world.nav_grid_ready:
+		path = world.find_smooth_path(global_position, pos)
+	elif nav != null and nav.get_point_count() > 0:
+		var a := nav.get_closest_point(global_position)
+		var b := nav.get_closest_point(pos)
+		path = nav.get_point_path(a, b)
+	else:
+		path = PackedVector3Array([pos])
 	path_i = 0
-	if path.size() > 1 and path[0].distance_to(global_position) < 1.0:
+	if path.size() > 1 and Vector2(path[0].x - global_position.x, path[0].z - global_position.z).length() < 0.65:
 		path_i = 1
 	_stuck_pos = global_position
 	_stuck_t = 0.0
 
+
+## Steering kumis (whiskers) setinggi pinggang (y=0.55m) agar mulus melewati sudut meja/kursi/kusen.
+func _steer_dir(desired_dir: Vector3) -> Vector3:
+	var space := get_world_3d().direct_space_state
+	var excl: Array[RID] = [get_rid()]
+	if player:
+		excl.append(player.get_rid())
+	var origin := global_position + Vector3(0.0, 0.55, 0.0)
+	var avoid := Vector3.ZERO
+	for ang_deg: float in [-36.0, 0.0, 36.0]:
+		var ray_dir := desired_dir.rotated(Vector3.UP, deg_to_rad(ang_deg))
+		var probe_len := 1.15 if ang_deg == 0.0 else 0.95
+		var q := PhysicsRayQueryParameters3D.create(origin, origin + ray_dir * probe_len, 1, excl)
+		var hit := space.intersect_ray(q)
+		if not hit.is_empty():
+			# Jangan hindari pintu tertutup jika memang sedang menuju pintu itu untuk menggedornya!
+			if hit.collider is Interactable and (hit.collider as Interactable).kind == Interactable.Kind.DOOR:
+				continue
+			var nrm: Vector3 = hit.normal
+			nrm.y = 0.0
+			var frac := 1.0 - clampf(origin.distance_to(hit.position) / probe_len, 0.0, 1.0)
+			if nrm.length_squared() > 0.01:
+				# Dorong ke arah tangensial menyusuri sisi meja, bukan sekadar memantul mundur!
+				var slide := desired_dir - nrm.normalized() * desired_dir.dot(nrm.normalized())
+				if slide.length_squared() > 0.01:
+					avoid += slide.normalized() * (frac * 1.15)
+				else:
+					avoid += nrm.normalized() * (frac * 0.95)
+	var combined := desired_dir + avoid
+	combined.y = 0.0
+	return combined.normalized() if combined.length_squared() > 0.001 else desired_dir
+
+
 func _move_along(delta: float, speed: float) -> bool:
 	if path_i >= path.size():
-		velocity.x = 0.0
-		velocity.z = 0.0
+		_smooth_vel = _smooth_vel.move_toward(Vector3.ZERO, speed * 8.0 * delta)
+		velocity.x = _smooth_vel.x
+		velocity.z = _smooth_vel.z
 		_animate_rig(delta, 0.0)
 		return true
+
+	# String-pull dinamis ke waypoint berikutnya bila koridor bahu sudah terbuka
+	if world != null and world.nav_grid_ready and path_i + 1 < path.size():
+		if world.has_clear_walk_corridor(global_position, path[path_i + 1], 0.36):
+			# Pastikan tidak melompati pintu tertutup di titik path_i
+			var c_mid := world.world_to_grid(path[path_i])
+			if world.nav_grid.get_point_weight_scale(c_mid) <= 1.5:
+				path_i += 1
+
 	var d := path[path_i] - global_position
 	d.y = 0.0
-	var reach := maxf(0.55, speed * delta * 2.2)
+	var is_last := (path_i == path.size() - 1)
+	var reach := maxf(0.45 if is_last else 0.58, speed * delta * 2.0)
 	if d.length() < reach:
 		path_i += 1
 		_stuck_pos = global_position
 		_stuck_t = 0.0
 		return path_i >= path.size()
-	var dir := d.normalized()
-	velocity = Vector3(dir.x * speed, -2.0, dir.z * speed)
-	rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), 8.5 * delta)
+
+	var raw_dir := d.normalized()
+	var steered := _steer_dir(raw_dir)
+	var target_vel := steered * speed
+	_smooth_vel = _smooth_vel.lerp(target_vel, minf(1.0, 12.0 * delta))
+	velocity = Vector3(_smooth_vel.x, -3.5 if is_on_floor() else velocity.y - 20.0 * delta, _smooth_vel.z)
+	if Vector2(_smooth_vel.x, _smooth_vel.z).length_squared() > 0.04:
+		rotation.y = lerp_angle(rotation.y, atan2(-_smooth_vel.x, -_smooth_vel.z), minf(1.0, 10.5 * delta))
 	move_and_slide()
 	_animate_rig(delta, Vector2(velocity.x, velocity.z).length())
 
@@ -235,13 +308,15 @@ func _move_along(delta: float, speed: float) -> bool:
 			return false
 
 	_stuck_t += delta
-	if _stuck_t >= 1.8:
+	if _stuck_t >= 1.2:
 		var moved := Vector2(global_position.x - _stuck_pos.x, global_position.z - _stuck_pos.z).length()
 		_stuck_pos = global_position
 		_stuck_t = 0.0
-		if moved < 0.35:
+		if moved < 0.32:
 			_stuck_strikes += 1
-			if path_i + 1 < path.size() and _stuck_strikes < 2:
+			if st == St.CHASE and player != null:
+				_go_to(player.global_position)
+			elif path_i + 1 < path.size() and _stuck_strikes < 2:
 				path_i += 1
 			else:
 				_stuck_strikes = 0
@@ -251,6 +326,7 @@ func _move_along(delta: float, speed: float) -> bool:
 		else:
 			_stuck_strikes = 0
 	return false
+
 
 func _animate_rig(delta: float, horiz_speed: float) -> void:
 	if st == St.BLOCKED:
@@ -270,64 +346,65 @@ func _animate_rig(delta: float, horiz_speed: float) -> void:
 	else:
 		_play_anim(&"CharacterArmature|Walk", clampf(horiz_speed / 1.75, 0.85, 1.35))
 
-	_stride_phase += delta * horiz_speed * 2.35
+	_stride_phase += delta * horiz_speed * 2.25
 	var half := int(floor(_stride_phase / PI))
 	if half != _last_step_half:
 		_last_step_half = half
 		if step_sfx:
-			step_sfx.pitch_scale = randf_range(0.82, 1.05) if st != St.CHASE else randf_range(0.95, 1.2)
-			step_sfx.volume_db = -3.0 if st == St.CHASE else -7.0
+			step_sfx.volume_db = -2.0 if st == St.CHASE else -6.5
 			step_sfx.play()
-		if player and global_position.distance_to(player.global_position) < 7.5:
+		if player and global_position.distance_to(player.global_position) < 11.5:
 			Game.add_trauma(0.09 if st == St.CHASE else 0.04)
 	_sync_face_to_head_bone()
+
 
 func _pick_patrol() -> void:
 	if patrol_ids.is_empty():
 		return
-	var bias := 0.16 + float(night) * 0.08 + (0.35 if Game.power_is_out else 0.0)
-	var id: int
-	if randf() < bias:
-		var best := 1e9
-		id = patrol_ids[0]
-		for pid in patrol_ids:
-			var dd := nav.get_point_position(pid).distance_to(player.global_position)
-			if dd < best:
-				best = dd
-				id = pid
-	else:
-		id = patrol_ids[randi() % patrol_ids.size()]
-	_go_to(nav.get_point_position(id))
+	var best_id := patrol_ids[randi() % patrol_ids.size()]
+	for _try in 6:
+		var cand := patrol_ids[randi() % patrol_ids.size()]
+		var p := nav.get_point_position(cand)
+		if p.distance_to(global_position) > 8.0:
+			best_id = cand
+			break
+	_go_to(nav.get_point_position(best_id))
 
 
-# ---------- State ----------
 func _set_state(s: int) -> void:
 	if st == s:
 		return
+	var prev := st
 	st = s
+	wait_t = 0.0
 	match s:
 		St.CHASE:
 			Game.set_threat(2)
-			_speak(true)
-		St.INVESTIGATE:
+			if prev != St.CHASE:
+				_speak(true)
+		St.INVESTIGATE, St.SEARCH:
 			Game.set_threat(1)
-			_speak(false)
-		St.SEARCH, St.BLOCKED, St.SABOTAGE:
+		St.BLOCKED:
 			Game.set_threat(1)
 		_:
 			Game.set_threat(0)
 
+
 func _speak(force: bool) -> void:
+	if voice == null:
+		return
 	if voice_cd <= 0.0 or force:
 		voice_cd = 8.5
 		voice.pitch_scale = randf_range(0.76, 0.96) if night >= Game.SECRET_NIGHT else randf_range(0.82, 1.0)
 		voice.play()
+
 
 func stun() -> void:
 	timer = 6.5 if night >= Game.SECRET_NIGHT else 9.0
 	voice.stop()
 	_play_anim(&"CharacterArmature|HitRecieve", 1.0)
 	_set_state(St.STUNNED)
+
 
 func _catch() -> void:
 	if Game.state != Game.S.PLAYING:
@@ -345,8 +422,8 @@ func _catch() -> void:
 func _speeds() -> Vector2:
 	var m := 1.12 if Game.power_is_out else 1.0
 	if night >= Game.SECRET_NIGHT:
-		return Vector2(3.35 * m, 5.15 * m)
-	return Vector2((1.6 + float(night) * 0.3) * m, (3.4 + float(night) * 0.34) * m)
+		return Vector2(4.25 * m, 5.45 * m)
+	return Vector2((2.25 + float(night) * 0.36) * m, (3.75 + float(night) * 0.35) * m)
 
 
 func _physics_process(delta: float) -> void:
@@ -363,6 +440,8 @@ func _physics_process(delta: float) -> void:
 	if st != St.STUNNED and st != St.CHASE and st != St.IDLE and _can_see():
 		lost_t = 0.0
 		last_known = player.global_position
+		_last_chase_target = Vector3.INF
+		repath_t = 0.0
 		_set_state(St.CHASE)
 
 	if st == St.PATROL and night >= 4 and sabotage_cd <= 0.0 and generator_nav_id >= 0 and not Game.generator_sabotaged and not Game.power_is_out:
@@ -381,7 +460,7 @@ func _physics_process(delta: float) -> void:
 		St.PATROL:
 			if _move_along(delta, sp.x):
 				wait_t += delta
-				if wait_t > randf_range(0.8, 2.5):
+				if wait_t > randf_range(0.6, 1.8):
 					wait_t = 0.0
 					_pick_patrol()
 			if randf() < delta / 24.0:
@@ -403,7 +482,7 @@ func _physics_process(delta: float) -> void:
 			timer -= delta
 			if _move_along(delta, sp.x):
 				wait_t += delta
-				if wait_t > 1.4:
+				if wait_t > 1.1:
 					wait_t = 0.0
 					var near := nav.get_closest_point(last_known)
 					var ids := nav.get_point_connections(near)
@@ -415,22 +494,31 @@ func _physics_process(delta: float) -> void:
 				_pick_patrol()
 		St.CHASE:
 			var seen := _can_see()
+			repath_t -= delta
 			if seen:
 				lost_t = 0.0
 				last_known = player.global_position
-				path = PackedVector3Array([player.global_position])
-				path_i = 0
+				# HANYA lari lurus bila koridor setinggi pinggang (y=0.56m) benar-benar kosong dari meja/kursi!
+				# Bila terhalang meja (seperti di Ruang Pimpinan/Sidang), gunakan AStarGrid2D untuk memutari meja!
+				if world != null and world.has_clear_walk_corridor(global_position, player.global_position, 0.36):
+					path = PackedVector3Array([player.global_position])
+					path_i = 0
+					_last_chase_target = player.global_position
+				elif repath_t <= 0.0 or not _last_chase_target.is_finite() or _last_chase_target.distance_to(player.global_position) > 0.85 or path_i >= path.size():
+					repath_t = 0.22
+					_last_chase_target = player.global_position
+					_go_to(player.global_position)
 			else:
 				lost_t += delta
-				repath_t -= delta
 				if repath_t <= 0.0:
-					repath_t = 0.45
+					repath_t = 0.38
 					_go_to(last_known)
-				if lost_t > 3.5:
+				if lost_t > 4.2:
 					timer = 9.0
 					_set_state(St.SEARCH)
 			_move_along(delta, sp.y)
-			if seen and dist < 1.45:
+			# Pastikan penangkapan tidak menembus meja/tembok!
+			if seen and dist < 1.52 and (world == null or world.has_clear_walk_corridor(global_position, player.global_position, 0.15)):
 				_catch()
 		St.BLOCKED:
 			_animate_rig(delta, 0.0)

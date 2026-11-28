@@ -20,10 +20,13 @@ signal trauma_added(amount: float)
 signal player_caught
 signal ammo_changed(count: int)
 signal camera_toggled(open: bool)
+signal cam_lens_updated(zoom_amount: float, focus_blur: float)
 signal door_count_changed(count: int)
 signal door_state_changed(door_id: int, closed: bool)
+signal graphics_changed(preset: int)
 
 enum S { MENU, PLAYING, DEAD, WON }
+enum Gfx { LOW = 0, BALANCED = 1, HIGH = 2 }
 
 const NIGHT_LENGTH := 330.0 # detik nyata per malam (12 AM -> 6 AM)
 const MAX_MAIN_NIGHT := 5
@@ -61,6 +64,7 @@ var music_volume := 0.80
 var sfx_volume := 0.85
 var mouse_sens := 0.0025
 var shake_strength := 1.0
+var graphics_preset: int = Gfx.BALANCED
 
 var _last_power_q := 100.0
 var _last_battery_q := 100.0
@@ -72,6 +76,7 @@ func _ready() -> void:
 	_register_inputs()
 	_load()
 	apply_audio()
+	apply_graphics.call_deferred()
 
 
 func _input(event: InputEvent) -> void:
@@ -127,6 +132,7 @@ func _register_inputs() -> void:
 	_key(&"camera_toggle", KEY_C); _btn(&"camera_toggle", JOY_BUTTON_Y)
 	_key(&"pause", KEY_ESCAPE); _btn(&"pause", JOY_BUTTON_START)
 	_mouse(&"fire", MOUSE_BUTTON_LEFT); _axis(&"fire", JOY_AXIS_TRIGGER_RIGHT, 1.0)
+	_mouse(&"cam_zoom", MOUSE_BUTTON_RIGHT); _axis(&"cam_zoom", JOY_AXIS_TRIGGER_LEFT, 1.0)
 	_key(&"easter_egg", KEY_K)
 	_key(&"cam_prev", KEY_Q); _btn(&"cam_prev", JOY_BUTTON_LEFT_SHOULDER)
 	_key(&"cam_next", KEY_R); _btn(&"cam_next", JOY_BUTTON_RIGHT_SHOULDER)
@@ -184,6 +190,7 @@ func start_night(n: int) -> void:
 	threat_changed.emit(0)
 	ammo_changed.emit(0)
 	camera_toggled.emit(false)
+	cam_lens_updated.emit(0.0, 0.0)
 	door_count_changed.emit(0)
 	set_state(S.PLAYING)
 
@@ -220,10 +227,10 @@ func _process(delta: float) -> void:
 		win()
 		return
 
-	# Cooldown generator
+	# Cooldown generator: gunakan ceilf agar transisi 1s -> 0s (Siap) tidak pernah macet di 1s!
 	if gen_cooldown > 0.0:
 		gen_cooldown = maxf(0.0, gen_cooldown - delta)
-		var gq := snappedf(gen_cooldown, 0.5)
+		var gq := ceilf(gen_cooldown)
 		if gq != _last_gen_q:
 			_last_gen_q = gq
 			generator_changed.emit(gen_cooldown, generator_sabotaged)
@@ -246,8 +253,8 @@ func _process(delta: float) -> void:
 		return
 
 	var night_mult := 1.25 if night >= SECRET_NIGHT else 1.0
-	var rate := (0.048 + 0.013 * float(night) + 0.11 * float(closed_doors)
-			+ (0.11 if camera_open else 0.0)
+	var rate := (0.042 + 0.012 * float(night) + 0.095 * float(closed_doors)
+			+ (0.10 if camera_open else 0.0)
 			+ (0.22 if generator_sabotaged else 0.0)) * night_mult
 	power = maxf(0.0, power - rate * delta)
 	var q := snappedf(power, 0.1)
@@ -261,7 +268,7 @@ func _process(delta: float) -> void:
 		_recalc_usage()
 		power_out.emit()
 		add_trauma(0.45)
-		toast.emit("DAYA HABIS! Cari Generator Darurat di R3 Server!")
+		toast.emit("DAYA HABIS! Cari Generator Darurat di Ruang Server Barat Laut!")
 
 
 # ---------- Helpers used by gameplay ----------
@@ -297,6 +304,9 @@ func set_camera(open: bool) -> void:
 func toggle_camera() -> void:
 	set_camera(not camera_open)
 
+func set_cam_lens(zoom_amount: float, focus_blur: float) -> void:
+	cam_lens_updated.emit(clampf(zoom_amount, 0.0, 1.0), clampf(focus_blur, 0.0, 1.0))
+
 func change_doors(delta: int, door_id: int = -1, closed_val: bool = false) -> void:
 	closed_doors = maxi(0, closed_doors + delta)
 	if door_id >= 0:
@@ -312,7 +322,7 @@ func sabotage_generator() -> void:
 	_recalc_usage()
 	generator_changed.emit(gen_cooldown, true)
 	add_trauma(0.35)
-	toast.emit("PERINGATAN: Panel Sekring di R3 Server disabotase! Daya bocor deras!")
+	toast.emit("PERINGATAN: Panel Sekring di Ruang Server Barat Laut disabotase! Daya bocor deras!")
 
 func use_generator(world_pos: Vector3) -> bool:
 	if gen_cooldown > 0.0 and not power_is_out and not generator_sabotaged:
@@ -327,13 +337,13 @@ func use_generator(world_pos: Vector3) -> bool:
 	power = clampf((35.0 if was_out else power + 35.0), 0.0, 100.0)
 	_last_power_q = snappedf(power, 0.1)
 	gen_cooldown = GEN_COOLDOWN
-	_last_gen_q = gen_cooldown
+	_last_gen_q = ceilf(gen_cooldown)
 	_recalc_usage()
 	power_changed.emit(power)
 	generator_changed.emit(gen_cooldown, false)
 	if was_out:
 		power_restored.emit()
-	add_noise(world_pos, 26.0)
+	add_noise(world_pos, 42.0)
 	add_trauma(0.45)
 	toast.emit("Generator dinyalakan (+35% daya) — suara mesin memancing Wowok!")
 	return true
@@ -372,6 +382,29 @@ func apply_audio() -> void:
 	_set_bus_gain(&"Ambience", sfx_volume)
 	_set_bus_gain(&"Voice", clampf(sfx_volume * 1.05, 0.0, 1.0))
 
+func set_graphics_preset(p: int) -> void:
+	graphics_preset = clampi(p, Gfx.LOW, Gfx.HIGH)
+	apply_graphics()
+	_save()
+
+func apply_graphics() -> void:
+	var vp := get_viewport()
+	if vp:
+		match graphics_preset:
+			Gfx.LOW:
+				vp.scaling_3d_scale = 0.75
+				vp.msaa_3d = Viewport.MSAA_DISABLED
+				vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+			Gfx.BALANCED:
+				vp.scaling_3d_scale = 0.90
+				vp.msaa_3d = Viewport.MSAA_DISABLED
+				vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+			Gfx.HIGH:
+				vp.scaling_3d_scale = 1.0
+				vp.msaa_3d = Viewport.MSAA_2X
+				vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+	graphics_changed.emit(graphics_preset)
+
 func save_settings() -> void:
 	_save()
 
@@ -383,6 +416,7 @@ func _save() -> void:
 	c.set_value("settings", "sfx_volume", sfx_volume)
 	c.set_value("settings", "sens", mouse_sens)
 	c.set_value("settings", "shake", shake_strength)
+	c.set_value("settings", "graphics_preset", graphics_preset)
 	c.save(SAVE_PATH)
 
 func _load() -> void:
@@ -394,7 +428,8 @@ func _load() -> void:
 	music_volume = clampf(float(c.get_value("settings", "music_volume", 0.80)), 0.0, 1.0)
 	sfx_volume = clampf(float(c.get_value("settings", "sfx_volume", 0.85)), 0.0, 1.0)
 	mouse_sens = clampf(float(c.get_value("settings", "sens", 0.0025)), 0.0005, 0.006)
-	shake_strength = clampf(float(c.get_value("settings", "shake", 1.0)), 0.0, 1.0)
+	shake_strength = clampf(float(c.get_value("settings", "shake", 1.0)), 0.0, 1.5)
+	graphics_preset = clampi(int(c.get_value("settings", "graphics_preset", Gfx.BALANCED)), Gfx.LOW, Gfx.HIGH)
 
 
 ## Suara sintetis (derau meluruh) tanpa file aset: tembakan, statis kamera, ketukan, klik senter.
@@ -436,5 +471,199 @@ func synth_tone(freq_start: float, freq_end: float, duration: float, decay: floa
 	w.format = AudioStreamWAV.FORMAT_16_BITS
 	w.mix_rate = rate
 	w.stereo = false
+	w.data = data
+	return w
+
+
+## Sound Cue Horor (Chase Stinger): gesekan biola/logam disonan (tritone + minor 2nd) + dentuman sub-bass.
+func synth_scare_stinger() -> AudioStreamWAV:
+	var rate := 22050
+	var dur := 1.35
+	var n := int(dur * rate)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var p1 := 0.0
+	var p2 := 0.0
+	var p3 := 0.0
+	var p_sub := 0.0
+	for i in n:
+		var t := float(i) / float(n)
+		var atk := minf(1.0, t / 0.025)
+		var env := atk * pow(1.0 - t, 1.55)
+		var vib := sin(TAU * 13.5 * t * dur) * 14.0
+		p1 += TAU * (587.3 + t * 95.0 + vib) / float(rate)
+		p2 += TAU * (622.3 + t * 130.0 - vib) / float(rate)
+		p3 += TAU * (830.6 - t * 60.0) / float(rate)
+		p_sub += TAU * lerpf(115.0, 36.0, minf(1.0, t * 2.4)) / float(rate)
+		var metallic := tanh((sin(p1) + sin(p2) * 0.9 + sin(p3) * 0.75) * 1.6) * 0.48
+		var sub := sin(p_sub) * pow(1.0 - minf(1.0, t * 1.4), 2.0) * 0.72
+		var grit := (randf() * 2.0 - 1.0) * pow(1.0 - t, 3.2) * 0.22
+		var v := (metallic + sub + grit) * env * 0.88
+		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 32767.0))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.stereo = false
+	w.data = data
+	return w
+
+
+## Sound Cue Waspada (Investigate Swell): dengung cello/brass rendah mencekam saat Wowok curiga.
+func synth_alert_cue() -> AudioStreamWAV:
+	var rate := 22050
+	var dur := 0.95
+	var n := int(dur * rate)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var p1 := 0.0
+	var p2 := 0.0
+	for i in n:
+		var t := float(i) / float(n)
+		var env := sin(t * PI) * pow(1.0 - t * 0.45, 1.2)
+		p1 += TAU * lerpf(92.5, 87.3, t) / float(rate)
+		p2 += TAU * lerpf(138.6, 130.8, t) / float(rate)
+		var sig := tanh((sin(p1) * 0.8 + sin(p2) * 0.55 + sin(p1 * 2.0) * 0.3) * 1.4)
+		var v := sig * env * 0.62
+		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 32767.0))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.stereo = false
+	w.data = data
+	return w
+
+
+## Sound Cue Listrik Padam / Pulih (Turbin Trafo Turun / Naik + Klik Relai).
+func synth_power_transition(down: bool) -> AudioStreamWAV:
+	var rate := 22050
+	var dur := 1.45 if down else 1.05
+	var n := int(dur * rate)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var ph := 0.0
+	for i in n:
+		var t := float(i) / float(n)
+		var f := lerpf(360.0, 32.0, pow(t, 0.65)) if down else lerpf(42.0, 290.0, pow(t, 1.25))
+		ph += TAU * f / float(rate)
+		var clack := (randf() * 2.0 - 1.0) * (1.0 if t < 0.035 else 0.0) * 0.85
+		var env := (1.0 - pow(t, 2.2)) if down else sin(t * PI * 0.85)
+		var hum := (sin(ph) * 0.65 + sin(ph * 2.0) * 0.28) * env
+		var v := (hum + clack) * 0.78
+		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 32767.0))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.stereo = false
+	w.data = data
+	return w
+
+
+## Ketukan Sepatu di Lantai Marmer (untuk variasi AudioStreamRandomizer pemain & pantofel berat Wowok).
+func synth_marble_step(heavy: bool, variant: int = 0) -> AudioStreamWAV:
+	var rate := 22050
+	var dur := 0.22 if heavy else 0.13
+	var n := int(dur * rate)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var p_thud := 0.0
+	var p_click := 0.0
+	var base_f := (68.0 if heavy else 145.0) + float(variant) * 11.0
+	var click_f := (620.0 if heavy else 1180.0) + float(variant) * 95.0
+	var lp := 0.0
+	for i in n:
+		var t := float(i) / float(n)
+		p_thud += TAU * lerpf(base_f, base_f * 0.42, t) / float(rate)
+		p_click += TAU * click_f / float(rate)
+		var raw_n := randf() * 2.0 - 1.0
+		lp = lerpf(lp, raw_n, 0.38 if heavy else 0.62)
+		var heel := (sin(p_click) * 0.35 + lp * 0.65) * pow(1.0 - minf(1.0, t * 5.5), 2.4)
+		var body := sin(p_thud) * pow(1.0 - t, 2.6 if heavy else 3.4) * (0.95 if heavy else 0.55)
+		var v := (heel + body) * (0.92 if heavy else 0.68)
+		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 32767.0))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.stereo = false
+	w.data = data
+	return w
+
+
+## Klik Mekanis Tombol Kaset Kamera Jadul (Camcorder / VHS Button Clack).
+func synth_camcorder_click(open_mode: bool) -> AudioStreamWAV:
+	var rate := 22050
+	var dur := 0.14
+	var n := int(dur * rate)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var ph := 0.0
+	for i in n:
+		var t := float(i) / float(n)
+		var click1 := (randf() * 2.0 - 1.0) * exp(-t * 95.0) * 0.85
+		var click2 := (randf() * 2.0 - 1.0) * exp(-absf(t - 0.045) * 120.0) * (0.65 if t >= 0.04 else 0.0)
+		ph += TAU * (1450.0 if open_mode else 980.0) / float(rate)
+		var whirr := sin(ph) * exp(-t * 24.0) * 0.22
+		var v := (click1 + click2 + whirr) * 0.78
+		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 32767.0))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.stereo = false
+	w.data = data
+	return w
+
+
+## Motor Servo Lensa Zoom Optik Camcorder Hi8 / VHS (dengung halus motor lensa + klik mikro).
+func synth_camcorder_zoom(zoom_in: bool) -> AudioStreamWAV:
+	var rate := 22050
+	var dur := 0.22
+	var n := int(dur * rate)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var p1 := 0.0
+	var p2 := 0.0
+	for i in n:
+		var t := float(i) / float(n)
+		var f_base := lerpf(285.0, 355.0, t) if zoom_in else lerpf(340.0, 265.0, t)
+		p1 += TAU * f_base / float(rate)
+		p2 += TAU * (f_base * 2.02) / float(rate)
+		var env := sin(t * PI) * 0.85
+		var gear := (randf() * 2.0 - 1.0) * 0.14 * env
+		var end_tick := (randf() * 2.0 - 1.0) * exp(-absf(t - 0.92) * 90.0) * 0.32
+		var v := ((sin(p1) * 0.42 + sin(p2) * 0.22) * env + gear + end_tick) * 0.52
+		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 32767.0))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.stereo = false
+	w.data = data
+	return w
+
+
+## Pulsa Drone Ketegangan Saat Dikejar (Loop pendek berdetak rendah di bus Music/Ambience).
+func synth_chase_pulse_loop() -> AudioStreamWAV:
+	var rate := 22050
+	var dur := 0.96 # 125 BPM (2 ketuk @ 0.48s)
+	var n := int(dur * rate)
+	var data := PackedByteArray()
+	data.resize(n * 2)
+	var p1 := 0.0
+	var p2 := 0.0
+	for i in n:
+		var sec := float(i) / float(rate)
+		var beat_t := fmod(sec, 0.48) / 0.48
+		var kick := sin(TAU * lerpf(96.0, 38.0, minf(1.0, beat_t * 3.5)) * beat_t * 0.48) * pow(1.0 - beat_t, 2.6) * 0.75
+		p1 += TAU * 55.0 / float(rate)
+		p2 += TAU * 58.27 / float(rate) # minor 2nd sub-dread
+		var drone := tanh((sin(p1) + sin(p2) * 0.8) * 1.3) * 0.28
+		var hat := (randf() * 2.0 - 1.0) * pow(1.0 - fmod(beat_t * 2.0, 1.0), 6.0) * 0.14
+		var v := (kick + drone + hat) * 0.72
+		data.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 32767.0))
+	var w := AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = rate
+	w.stereo = false
+	w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	w.loop_begin = 0
+	w.loop_end = n
 	w.data = data
 	return w

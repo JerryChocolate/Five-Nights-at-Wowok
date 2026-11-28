@@ -1,11 +1,11 @@
 extends StaticBody3D
 class_name Interactable
 ## Objek interaktif yang tampil penuh di Godot Editor: pintu, loker, terminal CCTV, baterai, generator.
-## Mendukung slot `custom_model` di Inspector untuk mengganti mesh placeholder dengan aset 3D (.glb/.gltf).
+## Pintu sekuriti memiliki panel sakelar di kedua sisi kusen (layer 2) sehingga selalu mudah ditutup/dibuka.
 
 enum Kind { DOOR, LOCKER, TERMINAL, BATTERY, GENERATOR }
 
-const OPEN_LIFT := 2.8
+const OPEN_LIFT := 2.65
 
 @export_group("Interactable")
 @export var kind: Kind = Kind.DOOR
@@ -15,21 +15,21 @@ const OPEN_LIFT := 2.8
 var closed := false
 var _col: CollisionShape3D
 var _visual: Node3D
-var _closed_y := 0.0
-var _base_x := 0.0
+var _closed_vis_y := 0.0
 var _tween: Tween
 var _bang_tween: Tween
 var _bang: AudioStreamPlayer3D
 var _sfx: AudioStreamPlayer3D
 var _status_mat: StandardMaterial3D
 var _status_light: OmniLight3D
+var _door_lamp_mat: StandardMaterial3D
 
 
 ## Kompatibilitas bila dipanggil lewat skrip prosedural.
 func setup(k: Kind, size: Vector3, material: Material, p_door_id: int = -1) -> void:
 	kind = k
 	door_id = p_door_id
-	collision_layer = 2 if k == Kind.BATTERY else 3
+	collision_layer = 2 if (k == Kind.BATTERY or k == Kind.DOOR) else 3
 	collision_mask = 0
 	var vis := Node3D.new()
 	vis.name = "Visual"
@@ -50,7 +50,6 @@ func setup(k: Kind, size: Vector3, material: Material, p_door_id: int = -1) -> v
 
 
 func _ready() -> void:
-	_base_x = position.x
 	_col = get_node_or_null("Col") as CollisionShape3D
 	_visual = get_node_or_null("Visual") as Node3D
 
@@ -61,8 +60,9 @@ func _ready() -> void:
 		slot.name = "CustomModel"
 		slot.add_child(custom_model.instantiate())
 		add_child(slot)
+		_visual = slot
 
-	collision_layer = 2 if kind == Kind.BATTERY else 3
+	collision_layer = 2 if (kind == Kind.BATTERY or kind == Kind.DOOR) else 3
 	collision_mask = 0
 
 	match kind:
@@ -72,19 +72,29 @@ func _ready() -> void:
 			_bang = AudioStreamPlayer3D.new()
 			_bang.bus = &"SFX"
 			_bang.stream = Game.synth_tone(95.0, 38.0, 0.28, 2.2, 1.0, 0.35)
-			_bang.unit_size = 9.0
-			_bang.max_distance = 42.0
+			_bang.unit_size = 12.0
+			_bang.max_distance = 58.0
 			add_child(_bang)
 			_sfx = AudioStreamPlayer3D.new()
 			_sfx.bus = &"SFX"
 			_sfx.stream = Game.synth_tone(140.0, 65.0, 0.32, 1.8, 0.75, 0.45)
-			_sfx.unit_size = 7.0
-			_sfx.max_distance = 28.0
+			_sfx.unit_size = 9.0
+			_sfx.max_distance = 38.0
 			add_child(_sfx)
-			_closed_y = position.y
-			position.y += OPEN_LIFT # di Editor tampil pada posisi pintu tertutup; saat runtime terangkat terbuka
+			_door_lamp_mat = StandardMaterial3D.new()
+			_door_lamp_mat.emission_enabled = true
+			_door_lamp_mat.emission_energy_multiplier = 1.6
+			for lp in ["SwitchPanelFront/SwitchLampFront", "SwitchPanelBack/SwitchLampBack"]:
+				var lm := get_node_or_null(lp) as MeshInstance3D
+				if lm:
+					lm.material_override = _door_lamp_mat
+			if _visual:
+				_closed_vis_y = _visual.position.y
+				_visual.position.y = _closed_vis_y + OPEN_LIFT
 			if _col:
 				_col.disabled = true
+			collision_layer = 2
+			_refresh_door_lamp()
 			if door_id >= 0:
 				Game.door_states[door_id] = false
 			Game.power_out.connect(force_open)
@@ -94,8 +104,8 @@ func _ready() -> void:
 			_sfx = AudioStreamPlayer3D.new()
 			_sfx.bus = &"SFX"
 			_sfx.stream = Game.synth_tone(320.0, 170.0, 0.22, 2.0, 0.55, 0.3)
-			_sfx.unit_size = 5.0
-			_sfx.max_distance = 18.0
+			_sfx.unit_size = 7.0
+			_sfx.max_distance = 26.0
 			add_child(_sfx)
 		Kind.GENERATOR:
 			if not is_in_group("generators"):
@@ -103,8 +113,8 @@ func _ready() -> void:
 			_sfx = AudioStreamPlayer3D.new()
 			_sfx.bus = &"SFX"
 			_sfx.stream = Game.synth_tone(75.0, 195.0, 0.65, 1.3, 0.95, 0.35)
-			_sfx.unit_size = 11.0
-			_sfx.max_distance = 48.0
+			_sfx.unit_size = 15.0
+			_sfx.max_distance = 72.0
 			add_child(_sfx)
 			var ind := get_node_or_null("Visual/StatusLamp") as MeshInstance3D
 			if ind:
@@ -121,6 +131,14 @@ func _ready() -> void:
 			Game.power_out.connect(_refresh_gen_visual)
 			Game.power_restored.connect(_refresh_gen_visual)
 			_refresh_gen_visual()
+
+
+func _refresh_door_lamp() -> void:
+	if _door_lamp_mat == null:
+		return
+	var col := Color(0.95, 0.18, 0.15) if closed else Color(0.22, 0.95, 0.45)
+	_door_lamp_mat.albedo_color = col
+	_door_lamp_mat.emission = col
 
 
 func _refresh_gen_visual() -> void:
@@ -141,7 +159,7 @@ func _refresh_gen_visual() -> void:
 func prompt_text() -> String:
 	match kind:
 		Kind.DOOR:
-			return "Buka pintu" if closed else "Tutup pintu (boros daya)"
+			return "Buka pintu sekuriti" if closed else "Tutup pintu sekuriti (boros daya)"
 		Kind.LOCKER:
 			return "Sembunyi di loker (tahan napas terbatas)"
 		Kind.TERMINAL:
@@ -169,10 +187,10 @@ func interact(player: Player) -> void:
 	match kind:
 		Kind.DOOR:
 			if Game.power_is_out:
-				Game.toast.emit("Daya mati: cari Generator di R3 Server!")
+				Game.toast.emit("Daya mati: nyalakan Generator di Ruang Server Barat Laut!")
 				return
 			set_closed(not closed)
-			Game.add_noise(global_position, 9.0)
+			Game.add_noise(global_position, 12.0)
 		Kind.LOCKER:
 			play_creak()
 			player.enter_hide(self)
@@ -194,16 +212,19 @@ func set_closed(c: bool) -> void:
 	if c == closed or kind != Kind.DOOR:
 		return
 	closed = c
+	collision_layer = 3 if c else 2
 	Game.change_doors(1 if c else -1, door_id, c)
+	_refresh_door_lamp()
 	if _col:
 		_col.set_deferred("disabled", not c)
 	if _sfx and is_inside_tree():
 		_sfx.pitch_scale = 0.85 if c else 1.1
 		_sfx.play()
-	if _tween:
-		_tween.kill()
-	_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_tween.tween_property(self, "position:y", _closed_y if c else _closed_y + OPEN_LIFT, 0.32)
+	if _visual:
+		if _tween:
+			_tween.kill()
+		_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		_tween.tween_property(_visual, "position:y", _closed_vis_y if c else _closed_vis_y + OPEN_LIFT, 0.32)
 
 
 func force_open() -> void:
@@ -217,10 +238,12 @@ func bang() -> void:
 		_bang.pitch_scale = randf_range(0.65, 0.92)
 		_bang.play()
 	Game.add_trauma(0.22)
+	if _visual == null:
+		return
 	if _bang_tween:
 		_bang_tween.kill()
-	position.x = _base_x
+	_visual.position.z = 0.0
 	_bang_tween = create_tween()
-	_bang_tween.tween_property(self, "position:x", _base_x + 0.045, 0.035)
-	_bang_tween.tween_property(self, "position:x", _base_x - 0.045, 0.035)
-	_bang_tween.tween_property(self, "position:x", _base_x, 0.04)
+	_bang_tween.tween_property(_visual, "position:z", 0.055, 0.035)
+	_bang_tween.tween_property(_visual, "position:z", -0.055, 0.035)
+	_bang_tween.tween_property(_visual, "position:z", 0.0, 0.04)

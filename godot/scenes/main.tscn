@@ -5,24 +5,18 @@
 [ext_resource type="AudioStream" path="res://assets/audio/codWaw.mp3" id="3"]
 [ext_resource type="AudioStream" path="res://assets/audio/ambiance.mp3" id="4"]
 [ext_resource type="Texture2D" path="res://assets/img/wowok_menu.jpg" id="5"]
-
-[sub_resource type="Shader" id="Shader_fx"]
-code = "shader_type canvas_item;
-uniform float intensity = 0.0;
-float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-void fragment(){
-	float d = distance(UV, vec2(0.5));
-	float vig = smoothstep(0.35, 0.95, d);
-	float g = h(UV * vec2(1920.0, 1080.0) + vec2(TIME * 37.1, TIME * 91.7));
-	float a = vig * (0.52 + 0.38 * intensity) + (g - 0.5) * 0.065;
-	vec3 col = mix(vec3(0.0), vec3(0.35, 0.0, 0.0), intensity * vig);
-	COLOR = vec4(col, clamp(a, 0.0, 1.0));
-}
-"
+[ext_resource type="Shader" path="res://shaders/bodycam_post.gdshader" id="6"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fx"]
-shader = SubResource("Shader_fx")
+shader = ExtResource("6")
 shader_parameter/intensity = 0.0
+shader_parameter/zoom_amount = 0.0
+shader_parameter/focus_blur = 0.0
+shader_parameter/base_distortion = 0.115
+shader_parameter/base_aberration = 0.0042
+shader_parameter/vignette_strength = 0.44
+shader_parameter/scanline_strength = 0.048
+shader_parameter/vhs_bleed = 0.0024
 
 [node name="Main" type="Node"]
 process_mode = 3

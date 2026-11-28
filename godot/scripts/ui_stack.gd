@@ -250,15 +250,16 @@ func make_settings(on_back: Callable) -> Control:
 
 	var col := VBoxContainer.new()
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	col.add_theme_constant_override("separation", 14)
+	col.add_theme_constant_override("separation", 11)
 	margin.add_child(col)
 
 	var t := Label.new()
 	t.text = "PENGATURAN"
-	t.add_theme_font_size_override("font_size", 64)
+	t.add_theme_font_size_override("font_size", 58)
 	t.add_theme_color_override("font_color", Color(0.9, 0.12, 0.12))
 	col.add_child(t)
 
+	_preset_row(col)
 	_slider_row(col, "Volume Utama", 0.0, 1.0, Game.master_volume, func(v: float) -> void:
 		Game.master_volume = v
 		Game.apply_audio())
@@ -270,11 +271,11 @@ func make_settings(on_back: Callable) -> Control:
 		Game.apply_audio())
 	_slider_row(col, "Sensitivitas Mouse", 0.0005, 0.006, Game.mouse_sens, func(v: float) -> void:
 		Game.mouse_sens = v)
-	_slider_row(col, "Guncangan Kamera", 0.0, 1.0, Game.shake_strength, func(v: float) -> void:
+	_slider_row(col, "Goyangan Kamera (VHS)", 0.0, 1.5, Game.shake_strength, func(v: float) -> void:
 		Game.shake_strength = v)
 
 	var back := Button.new()
-	back.custom_minimum_size = Vector2(560, 62)
+	back.custom_minimum_size = Vector2(560, 58)
 	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	back.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_wire_fnaf_btn(back, "KEMBALI")
@@ -282,6 +283,36 @@ func make_settings(on_back: Callable) -> Control:
 	col.add_child(back)
 	root.set_meta("on_cancel", on_back)
 	return root
+
+func _preset_row(parent: Control) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	var l := Label.new()
+	l.text = "Kualitas Grafis"
+	l.custom_minimum_size = Vector2(360, 0)
+	l.add_theme_font_size_override("font_size", 26)
+	row.add_child(l)
+	var names := ["RENDAH (75%)", "SEIMBANG (90%)", "TINGGI (100%)"]
+	var btns: Array[Button] = []
+	var refresh := func() -> void:
+		for i in btns.size():
+			var active := (Game.graphics_preset == i)
+			btns[i].text = ("[ " + names[i] + " ]") if active else names[i]
+			btns[i].modulate = Color(1.0, 0.92, 0.38) if active else Color(0.75, 0.78, 0.8)
+	for i in 3:
+		var b := Button.new()
+		b.custom_minimum_size = Vector2(180, 44)
+		b.add_theme_font_size_override("font_size", 18)
+		b.pressed.connect(func() -> void:
+			if _blip_sfx and is_inside_tree():
+				_blip_sfx.pitch_scale = 1.15
+				_blip_sfx.play()
+			Game.set_graphics_preset(i)
+			refresh.call())
+		btns.append(b)
+		row.add_child(b)
+	refresh.call()
+	parent.add_child(row)
 
 func _slider_row(parent: Control, label: String, lo: float, hi: float, val: float, cb: Callable) -> void:
 	var row := HBoxContainer.new()
