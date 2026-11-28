@@ -1,0 +1,5 @@
+Textures from Poly Haven (https://polyhaven.com), licensed CC0 1.0.
+ceil = ceiling_interior
+metal = metal_plate_02
+wall = clay_plaster
+floor = concrete_floor_02

@@ -1,0 +1,342 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/hud.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_bg"]
+bg_color = Color(0.08, 0.08, 0.1, 0.85)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.32, 0.34, 0.38, 0.9)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_breath_fill"]
+bg_color = Color(0.35, 0.82, 0.95, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_power_fill"]
+bg_color = Color(0.32, 0.85, 0.42, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bat_fill"]
+bg_color = Color(0.95, 0.82, 0.25, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_bg2"]
+bg_color = Color(0.08, 0.08, 0.1, 0.85)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.32, 0.34, 0.38, 0.9)
+
+[node name="HUD" type="CanvasLayer"]
+layer = 10
+process_mode = 1
+script = ExtResource("1")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="LockerPeekBars" type="Control" parent="Root"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TopBar" type="ColorRect" parent="Root/LockerPeekBars"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+anchor_bottom = 0.43
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
+
+[node name="BottomBar" type="ColorRect" parent="Root/LockerPeekBars"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 0.57
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
+
+[node name="SafeMargin" type="MarginContainer" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 44
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 44
+theme_override_constants/margin_bottom = 32
+
+[node name="Grid" type="Control" parent="Root/SafeMargin"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="TopRight" type="VBoxContainer" parent="Root/SafeMargin/Grid"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -460.0
+offset_bottom = 136.0
+grow_horizontal = 0
+mouse_filter = 2
+
+[node name="TimeLabel" type="Label" parent="Root/SafeMargin/Grid/TopRight"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 58
+text = "12 AM"
+horizontal_alignment = 2
+
+[node name="NightLabel" type="Label" parent="Root/SafeMargin/Grid/TopRight"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 28
+text = "MALAM 1"
+horizontal_alignment = 2
+
+[node name="ControlsLabel" type="Label" parent="Root/SafeMargin/Grid/TopRight"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.82, 0.78, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 20
+text = "[C] Tablet CCTV   [F] Senter   [Ctrl] Jongkok"
+horizontal_alignment = 2
+
+[node name="TopLeft" type="VBoxContainer" parent="Root/SafeMargin/Grid"]
+layout_mode = 1
+anchors_preset = 0
+offset_right = 420.0
+offset_bottom = 180.0
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="ThreatLabel" type="Label" parent="Root/SafeMargin/Grid/TopLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.9, 0.6, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 28
+text = "● AMAN"
+
+[node name="GenLabel" type="Label" parent="Root/SafeMargin/Grid/TopLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.88, 0.72, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 22
+text = "⚡ Generator R3: Siap"
+
+[node name="HiddenLabel" type="Label" parent="Root/SafeMargin/Grid/TopLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 26
+
+[node name="BreathBox" type="VBoxContainer" parent="Root/SafeMargin/Grid/TopLeft"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+
+[node name="BreathLabel" type="Label" parent="Root/SafeMargin/Grid/TopLeft/BreathBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 22
+text = "NAPAS 100%"
+
+[node name="BreathBar" type="ProgressBar" parent="Root/SafeMargin/Grid/TopLeft/BreathBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 16)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_breath_fill")
+value = 100.0
+show_percentage = false
+
+[node name="AmmoLabel" type="Label" parent="Root/SafeMargin/Grid/TopLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 26
+
+[node name="BottomLeft" type="VBoxContainer" parent="Root/SafeMargin/Grid"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -196.0
+offset_right = 340.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="PowerLabel" type="Label" parent="Root/SafeMargin/Grid/BottomLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 26
+text = "DAYA 100%"
+
+[node name="PowerBar" type="ProgressBar" parent="Root/SafeMargin/Grid/BottomLeft"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 20)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_power_fill")
+value = 100.0
+show_percentage = false
+
+[node name="UsageRow" type="HBoxContainer" parent="Root/SafeMargin/Grid/BottomLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="UsageTitle" type="Label" parent="Root/SafeMargin/Grid/BottomLeft/UsageRow"]
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 20
+text = "BEBAN:"
+
+[node name="Seg0" type="ColorRect" parent="Root/SafeMargin/Grid/BottomLeft/UsageRow"]
+custom_minimum_size = Vector2(24, 16)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.3, 0.85, 0.4, 1)
+
+[node name="Seg1" type="ColorRect" parent="Root/SafeMargin/Grid/BottomLeft/UsageRow"]
+custom_minimum_size = Vector2(24, 16)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.15, 0.16, 0.18, 0.8)
+
+[node name="Seg2" type="ColorRect" parent="Root/SafeMargin/Grid/BottomLeft/UsageRow"]
+custom_minimum_size = Vector2(24, 16)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.15, 0.16, 0.18, 0.8)
+
+[node name="Seg3" type="ColorRect" parent="Root/SafeMargin/Grid/BottomLeft/UsageRow"]
+custom_minimum_size = Vector2(24, 16)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.15, 0.16, 0.18, 0.8)
+
+[node name="Seg4" type="ColorRect" parent="Root/SafeMargin/Grid/BottomLeft/UsageRow"]
+custom_minimum_size = Vector2(24, 16)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.15, 0.16, 0.18, 0.8)
+
+[node name="DoorsLabel" type="Label" parent="Root/SafeMargin/Grid/BottomLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 22
+text = "Pintu tertutup: 0 / 6"
+
+[node name="BatteryLabel" type="Label" parent="Root/SafeMargin/Grid/BottomLeft"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 26
+text = "SENTER 100%"
+
+[node name="BatteryBar" type="ProgressBar" parent="Root/SafeMargin/Grid/BottomLeft"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 18)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg2")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bat_fill")
+value = 100.0
+show_percentage = false
+
+[node name="BottomCenter" type="VBoxContainer" parent="Root/SafeMargin/Grid"]
+custom_minimum_size = Vector2(920, 0)
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -460.0
+offset_top = -84.0
+offset_right = 460.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="ToastLabel" type="Label" parent="Root/SafeMargin/Grid/BottomCenter"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 26
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="PromptLabel" type="Label" parent="Root/SafeMargin/Grid/BottomCenter"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.92, 0.45, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 30
+horizontal_alignment = 1
+
+[node name="Crosshair" type="ColorRect" parent="Root"]
+custom_minimum_size = Vector2(6, 6)
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -3.0
+offset_top = -3.0
+offset_right = 3.0
+offset_bottom = 3.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.65)
